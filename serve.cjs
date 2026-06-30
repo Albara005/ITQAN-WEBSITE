@@ -114,11 +114,6 @@ if (!fs.existsSync(SETTINGS_DB)) fs.writeFileSync(SETTINGS_DB, JSON.stringify(SE
 function readSettings() { try { return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(fs.readFileSync(SETTINGS_DB, 'utf8'))); } catch { return Object.assign({}, SETTINGS_DEFAULTS); } }
 function writeSettings(s) { fs.writeFileSync(SETTINGS_DB, JSON.stringify(s, null, 2), 'utf8'); }
 
-function makeOrderId() {
-  const d = new Date();
-  const ymd = String(d.getFullYear()).slice(2) + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
-  return `ITQ-${ymd}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-}
 function sanitizeName(name) {
   return (path.basename(name || 'file').replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 120)) || 'file';
 }
@@ -303,9 +298,16 @@ function handleWorkImage(req, res) {
 }
 
 // ---------- static ----------
+// Files/folders that must NEVER be served (secrets, VCS, local config, runtime data).
+const STATIC_DENY = new Set(['admin-config.json', 'admin-config.example.json', 'work.json', 'settings.json', 'package.json', 'package-lock.json', 'serve.cjs']);
 function serveStatic(req, res, urlPath) {
   if (urlPath === '/') urlPath = '/index.html';
   if (urlPath === '/admin' || urlPath === '/admin/') urlPath = '/admin.html';
+  // Block hidden paths (.git, .claude, .gitignore, …) and denylisted files.
+  const segments = urlPath.split('/').filter(Boolean);
+  if (segments.some((s) => s.startsWith('.')) || STATIC_DENY.has(path.basename(urlPath))) {
+    res.writeHead(404); return res.end('Not found');
+  }
   const filePath = path.join(ROOT, urlPath);
   if (!filePath.startsWith(ROOT)) { res.writeHead(403); return res.end('Forbidden'); }
   if (filePath.startsWith(ORDERS_DIR)) { res.writeHead(403); return res.end('Forbidden'); }
