@@ -1039,7 +1039,15 @@
         }
       }
 
-      function onAllLoaded() {
+      // Show the site as soon as a small batch of opening frames is ready; the rest
+      // keep streaming in the background. This makes the initial load feel near-instant
+      // instead of waiting for all 612 frames (≈113 MB) to download.
+      var READY_FRAMES = Math.min(30, FRAME_COUNT);
+      var isReady = false;
+
+      function onReady() {
+        if (isReady) return;
+        isReady = true;
         resizeCanvas();
         if (!images[0] || !images[0].naturalWidth) {
           document.body.classList.add('video-failed'); // frames missing → gradient fallback
@@ -1053,12 +1061,13 @@
             var img = new Image();
             img.onload = img.onerror = function () {
               loadedCount++;
-              var pct = Math.round((loadedCount / FRAME_COUNT) * 100);
+              // Progress bar fills toward the "ready" batch so it reaches 100% fast.
+              var pct = Math.min(100, Math.round((loadedCount / READY_FRAMES) * 100));
               if (loaderFill) loaderFill.style.width = pct + '%';
               if (loaderPct) loaderPct.textContent = pct + '%';
               // Draw the first frame as soon as it lands so the hero isn't blank.
               if (i === 1) { resizeCanvas(); }
-              if (loadedCount === FRAME_COUNT) onAllLoaded();
+              if (loadedCount >= READY_FRAMES) onReady();
             };
             img.src = framePath(i);
             images[i - 1] = img;
@@ -1074,7 +1083,7 @@
       window.addEventListener('scroll', onScroll, { passive: true });
       window.addEventListener('resize', function () { computeIntro(); resizeCanvas(); });
       // Safety net: never let the loader trap the user on a slow connection.
-      setTimeout(hideLoader, 25000);
+      setTimeout(onReady, 9000);
 
       /* ===================== NAVBAR: blur + scroll-spy ===================== */
       var header = el('header');
