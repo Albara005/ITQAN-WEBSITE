@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "itqan",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeArgs": ["serve.cjs"],
+      "port": 8000,
+      "autoPort": true
+    }
+  ]
+}

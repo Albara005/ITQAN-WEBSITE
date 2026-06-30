@@ -1,0 +1,1405 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="إتقان — خدمة الملخصات الدراسية الاحترافية. احصل على ملخص دراسي احترافي لأي كتاب أو مادة في وقت قياسي." />
+  <title>إتقان | ملخصات دراسية احترافية</title>
+
+  <link rel="icon" type="image/png" href="logo.png" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400;500;600;700&family=Tajawal:wght@300;400;500;700;800&family=Reem+Kufi:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      /* Design palette (ETQAN.dc.html) */
+      --bg: #0a1622;
+      --navy: #0c1a2b;
+      --navy2: #11283f;
+      --panel: rgba(255,255,255,0.035);
+      --gold: #cda14a;
+      --goldL: #e8cd82;
+      --goldD: #a9802e;
+      --cream: #f6efdd;
+      --text: #eaf0f7;
+      --muted: #90a4bb;
+      --line: rgba(205,161,74,0.16);
+      /* aliases used by hero/form component CSS */
+      --navy-light: #11283f;
+      --navy-dark: #0a1622;
+      --gold-light: #e8cd82;
+      --gold-dark: #a9802e;
+      --video-overlay: rgba(10, 22, 34, 0.5);
+      --gold-glow: 0 0 25px rgba(205, 161, 74, 0.45);
+      --gold-glow-lg: 0 0 45px rgba(205, 161, 74, 0.55);
+    }
+
+    @keyframes etq-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
+    @keyframes etq-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+    @keyframes etq-spin-r{from{transform:rotate(0)}to{transform:rotate(-360deg)}}
+    @keyframes etq-pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.08)}}
+    ::selection{background:rgba(205,161,74,0.3);color:#fff;}
+    [data-reveal]{opacity:0;transform:translateY(38px);transition:opacity .9s cubic-bezier(.16,1,.3,1), transform .9s cubic-bezier(.16,1,.3,1);will-change:opacity,transform;}
+    [data-reveal].in{opacity:1;transform:none;}
+    details>summary{list-style:none;cursor:pointer;}
+    details>summary::-webkit-details-marker{display:none;}
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 80px;
+      scrollbar-color: var(--gold) var(--navy-dark);
+      scrollbar-width: thin;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    body {
+      font-family: 'Tajawal', 'Cairo', system-ui, sans-serif;
+      background-color: var(--navy-dark);
+      color: #f5f5f5;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    ::-webkit-scrollbar { width: 11px; height: 11px; }
+    ::-webkit-scrollbar-track { background: var(--navy-dark); }
+    ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--gold), var(--gold-dark)); border-radius: 8px; border: 2px solid var(--navy-dark); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--gold-light); }
+
+    a { text-decoration: none; color: inherit; }
+    img, video { display: block; max-width: 100%; }
+    button { font-family: inherit; cursor: pointer; border: none; background: none; }
+
+    .shell { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+    @media (min-width: 640px) { .shell { padding: 0 32px; } }
+
+    /* ---------- Buttons ---------- */
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 14px 30px; font-size: 1rem; font-weight: 700; letter-spacing: .3px; transition: all .3s ease; cursor: pointer; }
+    .btn-fill { background: var(--gold); color: var(--navy-dark); box-shadow: var(--gold-glow); }
+    .btn-fill:hover { background: var(--gold-light); box-shadow: var(--gold-glow-lg); transform: translateY(-2px); }
+    .btn-outline { background: rgba(13,27,46,.35); color: var(--gold); border: 2px solid rgba(201,168,76,.7); backdrop-filter: blur(4px); }
+    .btn-outline:hover { background: rgba(201,168,76,.12); border-color: var(--gold); box-shadow: var(--gold-glow); }
+    .btn-full { width: 100%; }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* ---------- Section titles ---------- */
+    .sec { padding: 96px 0; }
+    .sec-title { display: flex; flex-direction: column; align-items: center; text-align: center; margin-bottom: 56px; }
+    .eyebrow { color: var(--gold); font-size: .85rem; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; margin-bottom: 12px; }
+    .sec-title h2 { font-size: clamp(1.9rem, 4vw, 2.7rem); font-weight: 800; color: #fff; }
+    .underline { display: block; height: 4px; width: 96px; margin-top: 16px; border-radius: 999px; background: linear-gradient(to left, var(--gold), var(--gold-light), transparent); }
+    .sec-sub { margin-top: 20px; max-width: 640px; color: rgba(255,255,255,.7); font-size: 1.05rem; }
+
+    /* ---------- Cards ---------- */
+    .card { border-radius: 18px; border: 1px solid rgba(255,255,255,.1); background: rgba(15,32,53,.7); padding: 28px; backdrop-filter: blur(4px); height: 100%; }
+    .card-hover { transition: all .3s ease; }
+    .card-hover:hover { transform: translateY(-8px); border-color: rgba(201,168,76,.7); box-shadow: var(--gold-glow); }
+    .card-gold { border-color: rgba(201,168,76,.8); box-shadow: var(--gold-glow); }
+
+    /* ---------- Reveal on scroll ---------- */
+    .reveal { opacity: 0; transform: translateY(40px); transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
+    .reveal.in { opacity: 1; transform: none; }
+    .reveal-delay-1 { transition-delay: .1s; }
+    .reveal-delay-2 { transition-delay: .2s; }
+    .reveal-delay-3 { transition-delay: .3s; }
+
+    /* ============ LOADER ============ */
+    #loader { position: fixed; inset: 0; z-index: 100; background: var(--navy-dark); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; transition: opacity .6s ease, visibility .6s ease; }
+    #loader.hidden { opacity: 0; visibility: hidden; }
+    .loader-mark { display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 16px; border: 2px solid rgba(201,168,76,.6); background: var(--navy); color: var(--gold); font-size: 2rem; font-weight: 800; box-shadow: var(--gold-glow); }
+    .loader-logo { width: 130px; height: auto; display: block; }
+    .loader-bar { width: 180px; height: 4px; border-radius: 999px; background: rgba(255,255,255,.12); overflow: hidden; }
+    .loader-bar span { display: block; height: 100%; width: 0%; border-radius: 999px; background: linear-gradient(90deg, var(--gold-dark), var(--gold-light)); transition: width .2s ease; }
+    .loader-text { color: rgba(255,255,255,.55); font-size: .9rem; letter-spacing: .15em; }
+
+    /* ============ SCROLL-DRIVEN FRAME SEQUENCE (canvas) ============ */
+    #seq { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; display: block; }
+    .video-tint { position: fixed; inset: 0; z-index: 0; background: var(--video-overlay); }
+    .video-vignette { position: fixed; inset: 0; z-index: 0; background: radial-gradient(circle at 50% 45%, transparent 40%, rgba(10,14,23,.65) 100%); }
+    .video-fallback { position: fixed; inset: 0; z-index: 0; display: none; background: linear-gradient(135deg, var(--navy), var(--navy-light), var(--navy-dark)); }
+    body.video-failed #seq, body.video-failed .video-tint, body.video-failed .video-vignette { display: none; }
+    body.video-failed .video-fallback { display: block; }
+
+    /* Cinematic stage = the tall scroll spacer that scrubs the video */
+    .cinematic { position: relative; z-index: 1; height: 800vh; }
+
+    .cine-block { position: fixed; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 8%; opacity: 0; will-change: transform, opacity; pointer-events: none; }
+    .cine-block a { pointer-events: auto; }
+    .cine-block.pos-top { justify-content: flex-start; padding-top: 24vh; }
+    .cine-block.pos-lower { justify-content: flex-end; padding-bottom: 28vh; }
+    .cine-block.pos-bottom { justify-content: flex-end; padding-bottom: 15vh; }
+
+    .cine-badge { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; border: 1px solid rgba(201,168,76,.4); background: rgba(13,27,46,.4); backdrop-filter: blur(4px); padding: 10px 22px; color: var(--gold); font-size: clamp(.85rem, 2vw, 1rem); font-weight: 500; }
+    .cine-logo { font-size: clamp(4rem, 14vw, 9rem); font-weight: 900; color: #fff; line-height: 1; text-shadow: 0 2px 24px rgba(201,168,76,.5), 0 0 2px rgba(201,168,76,.6); }
+    .cine-logo small { display: block; margin-top: 18px; font-size: clamp(.95rem, 2.4vw, 1.35rem); font-weight: 500; letter-spacing: .35em; color: var(--gold); text-shadow: none; }
+    .cine-sub { max-width: 720px; font-size: clamp(1.15rem, 3vw, 1.7rem); font-weight: 700; color: #fff; text-shadow: 0 2px 18px rgba(0,0,0,.6); }
+    .cine-ctas { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+    @media (min-width: 640px) { .cine-ctas { flex-direction: row; } }
+
+    .scroll-arrow { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 2; }
+    .scroll-arrow .mouse { display: flex; align-items: flex-start; justify-content: center; width: 28px; height: 44px; border: 2px solid rgba(201,168,76,.7); border-radius: 999px; padding: 6px; }
+    .scroll-arrow .dot { width: 4px; height: 10px; border-radius: 999px; background: var(--gold); animation: bounceArrow 1.8s ease-in-out infinite; }
+    @keyframes bounceArrow { 0%,100% { transform: translateY(0); } 50% { transform: translateY(10px); } }
+
+    /* Static fallback hero for reduced-motion */
+    .static-hero { display: none; position: relative; z-index: 1; min-height: 100svh; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 8%; }
+    body.reduced .cinematic { display: none; }
+    body.reduced .scroll-arrow { display: none; }
+    body.reduced .static-hero { display: flex; }
+
+    /* ============ REST OF PAGE (opaque, scrolls over fixed video) ============ */
+    .rest { position: relative; z-index: 2; background:
+      radial-gradient(1200px 700px at 80% -2%, rgba(205,161,74,0.08), transparent 60%),
+      radial-gradient(900px 600px at 10% 102%, rgba(29,67,104,0.40), transparent 55%),
+      linear-gradient(180deg, #0a1622, #081119); }
+    /* design sections are self-styled; neutralize legacy section bg helpers */
+    .rest .sec { background: transparent !important; }
+
+    /* ============ NAVBAR ============ */
+    header { position: fixed; inset: 0 0 auto 0; z-index: 50; transition: all .3s ease; background: rgba(8,18,28,.55); backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+    header.scrolled { background: rgba(8,18,28,.78); box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 16px 0; }
+    .logo { display: flex; align-items: center; gap: 10px; }
+    .logo-mark { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 9px; border: 1px solid rgba(201,168,76,.6); background: var(--navy-dark); color: var(--gold); font-weight: 800; font-size: 1.15rem; }
+    .logo-text { font-size: 1.5rem; font-weight: 800; color: #fff; }
+    .logo-img { height: 50px; width: auto; display: block; filter: drop-shadow(0 2px 6px rgba(0,0,0,.45)); }
+    .logo-img-lg { height: 78px; }
+    .nav-links { display: none; align-items: center; gap: 28px; list-style: none; }
+    .nav-links a { color: var(--muted); font-weight: 500; font-size: .95rem; transition: color .2s; position: relative; }
+    .nav-links a:hover { color: var(--goldL); }
+    .nav-links a:hover, .nav-links a.active { color: var(--gold); }
+    .nav-links a.active::after { content: ''; position: absolute; right: 0; bottom: -6px; width: 100%; height: 2px; border-radius: 2px; background: var(--gold); }
+    .nav-right { display: flex; align-items: center; gap: 12px; }
+    .nav-cta { display: none; padding: 11px 24px; font-size: .9rem; background: linear-gradient(135deg, var(--goldL), var(--goldD)); color: #1a1206; box-shadow: 0 8px 24px rgba(205,161,74,.3); }
+    .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(205,161,74,.45); background: linear-gradient(135deg, var(--goldL), var(--goldD)); }
+    .hamburger { display: flex; flex-direction: column; gap: 6px; width: 44px; height: 44px; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,.15); border-radius: 9px; }
+    .hamburger span { width: 24px; height: 2px; background: var(--gold); transition: all .3s ease; }
+    .hamburger.open span:nth-child(1) { transform: translateY(8px) rotate(45deg); }
+    .hamburger.open span:nth-child(2) { opacity: 0; }
+    .hamburger.open span:nth-child(3) { transform: translateY(-8px) rotate(-45deg); }
+    .mobile-menu { overflow: hidden; max-height: 0; transition: max-height .35s ease; background: rgba(13,27,46,.96); backdrop-filter: blur(10px); border-top: 1px solid rgba(255,255,255,.1); }
+    .mobile-menu.open { max-height: 420px; }
+    .mobile-menu ul { list-style: none; padding: 16px 0; display: flex; flex-direction: column; gap: 4px; }
+    .mobile-menu a { display: block; padding: 12px; border-radius: 9px; color: rgba(255,255,255,.85); font-weight: 500; }
+    .mobile-menu a:hover { background: rgba(255,255,255,.05); color: var(--gold); }
+    @media (min-width: 1024px) { .nav-links, .nav-cta { display: flex; } .hamburger { display: none; } }
+
+    /* ============ HOW IT WORKS ============ */
+    .bg-navy { background: var(--navy); }
+    .bg-navy-light { background: var(--navy-light); }
+    .bg-navy-dark { background: var(--navy-dark); }
+    .steps { position: relative; display: grid; grid-template-columns: 1fr; gap: 40px; }
+    .steps .dashline { display: none; }
+    @media (min-width: 768px) { .steps { grid-template-columns: repeat(3, 1fr); } .steps .dashline { display: block; position: absolute; top: 36px; right: 16%; left: 16%; border-top: 2px dashed rgba(201,168,76,.3); } }
+    .step { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .step-num { display: flex; align-items: center; justify-content: center; width: 72px; height: 72px; margin-bottom: 20px; border-radius: 999px; border: 2px solid var(--gold); background: var(--navy-dark); color: var(--gold); font-size: 1.5rem; font-weight: 800; box-shadow: var(--gold-glow); }
+    .step-icon { font-size: 2.25rem; margin-bottom: 12px; }
+    .step h3 { font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .step p { color: rgba(255,255,255,.7); max-width: 280px; }
+
+    /* ============ SUBJECTS ============ */
+    .grid-3 { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    @media (min-width: 640px) { .grid-3 { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 1024px) { .grid-3 { grid-template-columns: repeat(3, 1fr); } }
+    .subj-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-bottom: 16px; border-radius: 12px; background: rgba(201,168,76,.1); color: var(--gold); font-size: 1.5rem; }
+    .subj h3 { font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .subj p { color: rgba(255,255,255,.7); }
+    .subj-special { background: linear-gradient(135deg, rgba(201,168,76,.15), var(--navy-light)); }
+    .subj-special .subj-icon { background: var(--gold); color: var(--navy-dark); }
+    .subj-special h3 { color: var(--gold); }
+
+    /* ============ SAMPLES ============ */
+    .carousel { display: flex; gap: 24px; overflow-x: auto; padding: 0 20px 16px; margin: 0 -20px; scroll-snap-type: x mandatory; -ms-overflow-style: none; scrollbar-width: none; }
+    .carousel::-webkit-scrollbar { display: none; }
+    @media (min-width: 640px) { .carousel { margin: 0; padding: 0 0 16px; } }
+    .sample { flex: 0 0 78%; scroll-snap-align: center; }
+    @media (min-width: 640px) { .sample { flex: 0 0 340px; } }
+    .sample-cover { position: relative; aspect-ratio: 3/4; border-radius: 18px; overflow: hidden; margin-bottom: 16px; border: 1px solid rgba(255,255,255,.1); background: linear-gradient(135deg, var(--navy-light), var(--navy-dark)); box-shadow: 0 10px 30px rgba(0,0,0,.35); transition: transform .3s ease; display: flex; align-items: center; justify-content: center; }
+    .sample:hover .sample-cover { transform: scale(1.02); }
+    .sample-watermark { font-size: 3.75rem; font-weight: 900; color: rgba(201,168,76,.15); user-select: none; }
+    .sample-pages { position: absolute; top: 12px; right: 12px; background: rgba(10,14,23,.8); backdrop-filter: blur(4px); color: var(--gold); padding: 4px 12px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+    .sample-tag { position: absolute; bottom: 12px; right: 12px; background: var(--gold); color: var(--navy-dark); padding: 4px 12px; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+    .sample h3 { font-size: 1.1rem; font-weight: 700; color: #fff; }
+
+    /* ============ PRICING ============ */
+    .pricing-grid { display: grid; grid-template-columns: 1fr; gap: 28px; align-items: stretch; }
+    @media (min-width: 1024px) { .pricing-grid { grid-template-columns: repeat(3, 1fr); } }
+    .tier { position: relative; display: flex; flex-direction: column; }
+    @media (min-width: 1024px) { .tier-rec .card { padding-top: 40px; padding-bottom: 40px; margin-top: -16px; } }
+    .tier-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: var(--gold); color: var(--navy-dark); padding: 4px 16px; border-radius: 999px; font-size: .75rem; font-weight: 800; box-shadow: var(--gold-glow); z-index: 2; }
+    .tier h3 { font-size: 1.5rem; font-weight: 800; color: #fff; }
+    .tier .tagline { margin-top: 4px; font-size: .9rem; color: rgba(255,255,255,.6); }
+    .tier .price { margin: 24px 0; font-size: 1.85rem; font-weight: 900; color: var(--gold); }
+    .tier ul { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+    .tier li { display: flex; align-items: flex-start; gap: 10px; color: rgba(255,255,255,.8); }
+    .tier li svg { flex: 0 0 20px; width: 20px; height: 20px; color: var(--gold); margin-top: 2px; }
+    .tier .btn-wrap { margin-top: auto; }
+
+    /* ============ REQUEST FORM ============ */
+    .request-sec { position: relative; }
+    .request-sec .gold-border { position: absolute; inset: 0 0 auto 0; height: 4px; background: linear-gradient(to left, transparent, var(--gold), transparent); }
+    .form-card { border-radius: 24px; border: 1px solid rgba(255,255,255,.1); background: rgba(15,32,53,.6); backdrop-filter: blur(4px); padding: 24px; }
+    @media (min-width: 640px) { .form-card { padding: 36px; } }
+    .form-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
+    @media (min-width: 640px) { .form-grid { grid-template-columns: repeat(2, 1fr); } }
+    .field { display: flex; flex-direction: column; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { margin-bottom: 8px; font-size: .9rem; font-weight: 700; color: rgba(255,255,255,.85); }
+    .field input, .field textarea { width: 100%; border-radius: 12px; border: 1px solid rgba(255,255,255,.15); background: rgba(10,14,23,.6); padding: 12px 16px; color: #fff; font-family: inherit; font-size: 1rem; outline: none; transition: border-color .2s, box-shadow .2s; }
+    .field input::placeholder, .field textarea::placeholder { color: rgba(255,255,255,.4); }
+    .field input:focus, .field textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+    .field textarea { resize: vertical; min-height: 110px; }
+    .field input.invalid { border-color: rgba(248,113,113,.7); }
+    .field .err { margin-top: 6px; font-size: .85rem; color: #f87171; min-height: 1.1em; }
+    .segmented { display: flex; gap: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,.15); background: rgba(10,14,23,.6); padding: 6px; }
+    .segmented button { flex: 1; border-radius: 9px; padding: 9px 0; font-weight: 700; font-size: .9rem; color: rgba(255,255,255,.7); transition: all .2s; }
+    .segmented button.active { background: var(--gold); color: var(--navy-dark); }
+    .spinner { width: 16px; height: 16px; border-radius: 999px; border: 2px solid rgba(10,14,23,.4); border-top-color: var(--navy-dark); animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .success { display: none; flex-direction: column; align-items: center; text-align: center; padding: 40px 0; }
+    .success.show { display: flex; }
+    .success-check { display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; margin-bottom: 24px; border-radius: 999px; background: var(--gold); box-shadow: var(--gold-glow-lg); animation: pop .5s cubic-bezier(.2,1.4,.5,1); }
+    @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+    .success-check svg path { stroke-dasharray: 48; stroke-dashoffset: 48; animation: draw .5s ease forwards .25s; }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    .success h3 { font-size: 1.5rem; font-weight: 800; color: #fff; }
+    .success p { margin-top: 12px; max-width: 420px; color: rgba(255,255,255,.7); }
+    .success button { margin-top: 28px; color: var(--gold); font-weight: 700; font-size: .9rem; }
+    .success button:hover { text-decoration: underline; }
+    .order-number { color: var(--gold); font-weight: 800; letter-spacing: 1px; }
+
+    /* ---- Multi-step order flow ---- */
+    .stepper { list-style: none; display: flex; justify-content: space-between; gap: 6px; margin-bottom: 30px; counter-reset: s; }
+    .step-dot { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; position: relative; color: rgba(255,255,255,.5); font-size: .8rem; }
+    .step-dot::before { content: ''; position: absolute; top: 17px; right: -50%; width: 100%; height: 2px; background: rgba(255,255,255,.12); z-index: 0; }
+    .step-dot:first-child::before { display: none; }
+    .step-dot span { position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 999px; border: 2px solid rgba(255,255,255,.18); background: var(--navy-dark); font-weight: 800; transition: all .25s; }
+    .step-dot b { font-weight: 600; }
+    .step-dot.active span, .step-dot.done span { border-color: var(--gold); color: var(--gold); }
+    .step-dot.done span { background: var(--gold); color: var(--navy-dark); }
+    .step-dot.active { color: var(--gold); }
+    .step-dot.done::before { background: var(--gold); }
+
+    .step-panel { display: none; animation: fadeUp .4s ease; }
+    .step-panel.active { display: block; }
+    .step-title { font-size: 1.2rem; font-weight: 800; color: #fff; margin-bottom: 18px; }
+    .err-block { display: block; min-height: 1.1em; margin-top: 10px; font-size: .85rem; color: #f87171; }
+
+    .choice-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    @media (min-width: 640px) { .choice-grid { grid-template-columns: 1fr 1fr; } }
+    .choice { display: flex; flex-direction: column; gap: 4px; text-align: right; border: 1.5px solid rgba(255,255,255,.14); border-radius: 16px; background: rgba(10,14,23,.5); padding: 18px; cursor: pointer; transition: all .2s; }
+    .choice:hover { border-color: rgba(201,168,76,.6); }
+    .choice.selected { border-color: var(--gold); background: rgba(201,168,76,.08); box-shadow: var(--gold-glow); }
+    .choice .c-name { font-weight: 800; color: #fff; font-size: 1.05rem; }
+    .choice .c-desc { font-size: .85rem; color: rgba(255,255,255,.6); }
+    .choice .c-price { margin-top: 6px; color: var(--gold); font-weight: 800; }
+
+    .dropzone { border: 2px dashed rgba(201,168,76,.45); border-radius: 16px; background: rgba(10,14,23,.4); padding: 32px 20px; text-align: center; cursor: pointer; transition: all .2s; outline: none; }
+    .dropzone:hover, .dropzone:focus, .dropzone.drag { border-color: var(--gold); background: rgba(201,168,76,.07); }
+    .dz-icon { font-size: 2rem; }
+    .dz-main { margin-top: 8px; color: rgba(255,255,255,.85); font-weight: 600; }
+    .dz-link { color: var(--gold); text-decoration: underline; }
+    .dz-hint { margin-top: 6px; font-size: .8rem; color: rgba(255,255,255,.5); }
+    .file-list { list-style: none; margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .file-row { display: flex; align-items: center; gap: 10px; background: rgba(10,14,23,.55); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; padding: 10px 12px; }
+    .file-row .f-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; font-size: .9rem; }
+    .file-row .f-size { font-size: .78rem; color: rgba(255,255,255,.5); flex-shrink: 0; }
+    .file-row .f-del { flex-shrink: 0; width: 26px; height: 26px; border-radius: 7px; color: #f87171; border: 1px solid rgba(248,113,113,.3); font-size: 1rem; line-height: 1; }
+    .file-row .f-del:hover { background: rgba(248,113,113,.12); }
+
+    .addon-list { display: flex; flex-direction: column; gap: 12px; }
+    .addon { display: flex; align-items: center; gap: 14px; border: 1.5px solid rgba(255,255,255,.14); border-radius: 14px; background: rgba(10,14,23,.5); padding: 16px 18px; cursor: pointer; transition: all .2s; }
+    .addon:hover { border-color: rgba(201,168,76,.5); }
+    .addon.selected { border-color: var(--gold); background: rgba(201,168,76,.08); }
+    .addon .a-check { flex-shrink: 0; width: 24px; height: 24px; border-radius: 7px; border: 2px solid rgba(255,255,255,.3); display: flex; align-items: center; justify-content: center; color: var(--navy-dark); font-size: .9rem; transition: all .2s; }
+    .addon.selected .a-check { background: var(--gold); border-color: var(--gold); }
+    .addon .a-body { flex: 1; }
+    .addon .a-name { font-weight: 700; color: #fff; }
+    .addon .a-desc { font-size: .82rem; color: rgba(255,255,255,.6); }
+    .addon .a-price { color: var(--gold); font-weight: 700; font-size: .9rem; }
+
+    .summary { margin-top: 22px; border: 1px solid rgba(201,168,76,.3); border-radius: 16px; background: rgba(201,168,76,.05); padding: 18px 20px; }
+    .summary h4 { color: var(--gold); font-weight: 800; margin-bottom: 12px; font-size: .95rem; }
+    .summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,.08); font-size: .9rem; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row .s-key { color: rgba(255,255,255,.6); }
+    .summary-row .s-val { color: #fff; font-weight: 600; text-align: left; }
+
+    .step-nav { display: flex; gap: 12px; margin-top: 26px; }
+    .step-nav .btn { flex: 1; }
+
+    /* ============ TESTIMONIALS ============ */
+    .testimonials { max-width: 768px; }
+    .quote-wrap { min-height: 16rem; position: relative; }
+    .quote { display: none; flex-direction: column; align-items: center; text-align: center; border-radius: 24px; border: 1px solid rgba(255,255,255,.1); background: rgba(15,32,53,.6); backdrop-filter: blur(4px); padding: 40px 32px; animation: fadeUp .45s ease; }
+    .quote.active { display: flex; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+    .quote .mark { font-size: 3rem; line-height: 1; color: rgba(201,168,76,.4); margin-bottom: 16px; }
+    .stars { color: var(--gold); letter-spacing: 3px; }
+    .stars .off { color: rgba(255,255,255,.2); }
+    .quote p.text { margin-top: 20px; font-size: 1.1rem; color: rgba(255,255,255,.85); }
+    .quote .name { margin-top: 24px; font-weight: 800; color: #fff; }
+    .quote .subj { margin-top: 4px; font-size: .85rem; color: var(--gold); }
+    .dots { display: flex; justify-content: center; gap: 10px; margin-top: 32px; }
+    .dots button { width: 10px; height: 10px; border-radius: 999px; background: rgba(255,255,255,.25); transition: all .3s; }
+    .dots button.active { width: 28px; background: var(--gold); }
+
+    /* ============ FOOTER ============ */
+    footer { background: var(--navy-dark); padding-top: 64px; }
+    .footer-grid { display: grid; grid-template-columns: 1fr; gap: 40px; padding-bottom: 48px; }
+    @media (min-width: 640px) { .footer-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (min-width: 1024px) { .footer-grid { grid-template-columns: repeat(4, 1fr); } .footer-brand { grid-column: span 2; } }
+    .footer-brand p { margin-top: 16px; max-width: 360px; color: rgba(255,255,255,.6); }
+    footer h4 { color: var(--gold); font-weight: 700; margin-bottom: 16px; }
+    .footer-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-list a, .footer-list li { color: rgba(255,255,255,.65); transition: color .2s; }
+    .footer-list a:hover { color: var(--gold); }
+    .socials { display: flex; gap: 12px; }
+    .socials a { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 999px; border: 1px solid rgba(255,255,255,.15); color: rgba(255,255,255,.7); transition: all .3s; }
+    .socials a:hover { border-color: var(--gold); background: rgba(201,168,76,.1); color: var(--gold); }
+    .footer-sep { height: 1px; width: 100%; background: linear-gradient(to left, transparent, rgba(201,168,76,.5), transparent); }
+    .copyright { text-align: center; padding: 24px 0; font-size: .85rem; color: rgba(255,255,255,.5); }
+    .footer-top { display: flex; flex-direction: column; gap: 24px; align-items: flex-start; padding-bottom: 36px; }
+    @media (min-width: 700px) { .footer-top { flex-direction: row; justify-content: space-between; align-items: center; } }
+    .footer-brand p { margin-top: 12px; color: rgba(255,255,255,.55); }
+    .footer-links { list-style: none; display: flex; flex-wrap: wrap; gap: 22px; }
+    .footer-links a { color: rgba(255,255,255,.7); transition: color .2s; }
+    .footer-links a:hover { color: var(--gold); }
+
+    /* ===== logo wordmark + tagline (navbar) ===== */
+    .logo-wordmark { display: flex; flex-direction: column; line-height: 1.05; }
+    .logo-wordmark b { font-family: 'Reem Kufi', serif; font-size: 1.4rem; font-weight: 700; color: var(--cream); letter-spacing: .5px; }
+    .logo-wordmark small { font-size: .58rem; font-weight: 600; letter-spacing: .22em; color: var(--gold); margin-top: 5px; }
+
+    /* ===== services grid ===== */
+    .services-grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
+    @media (min-width: 640px) { .services-grid { grid-template-columns: 1fr 1fr; } }
+    @media (min-width: 980px) { .services-grid { grid-template-columns: repeat(3, 1fr); } }
+    .svc { position: relative; border: 1px solid rgba(255,255,255,.1); border-radius: 20px; background: rgba(15,32,53,.55); padding: 26px; overflow: hidden; transition: all .3s; }
+    .svc::before { content: ''; position: absolute; top: -40%; left: -10%; width: 70%; height: 80%; background: radial-gradient(circle, rgba(201,168,76,.10), transparent 70%); pointer-events: none; }
+    .svc:hover { transform: translateY(-6px); border-color: rgba(201,168,76,.55); box-shadow: var(--gold-glow); }
+    .svc-icon { display: flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 14px; background: rgba(201,168,76,.12); color: var(--gold); margin-bottom: 20px; }
+    .svc-icon svg { width: 26px; height: 26px; }
+    .svc h3 { font-size: 1.3rem; font-weight: 800; color: #fff; margin-bottom: 10px; }
+    .svc p { color: rgba(255,255,255,.65); line-height: 1.7; }
+    .svc-soon { position: absolute; top: 18px; left: 18px; background: rgba(201,168,76,.18); color: var(--gold-light); font-size: .72rem; font-weight: 700; padding: 3px 12px; border-radius: 999px; }
+    .svc.svc-cta { background: linear-gradient(150deg, var(--gold), var(--gold-dark)); border: none; display: flex; flex-direction: column; justify-content: center; }
+    .svc.svc-cta::before { display: none; }
+    .svc.svc-cta h3 { color: var(--navy-dark); font-size: 1.5rem; }
+    .svc.svc-cta p { color: rgba(10,14,23,.8); font-weight: 600; }
+    .svc.svc-cta a { margin-top: 16px; display: inline-flex; align-items: center; gap: 6px; color: var(--navy-dark); font-weight: 800; }
+    .svc.svc-cta:hover { transform: translateY(-6px); box-shadow: var(--gold-glow-lg); }
+
+    /* ===== flow (5 steps) ===== */
+    .flow-grid { display: grid; grid-template-columns: 1fr; gap: 18px; }
+    @media (min-width: 640px) { .flow-grid { grid-template-columns: 1fr 1fr; } }
+    @media (min-width: 1024px) { .flow-grid { grid-template-columns: repeat(5, 1fr); } }
+    .flow-card { position: relative; border: 1px solid rgba(255,255,255,.1); border-radius: 18px; background: rgba(15,32,53,.5); padding: 26px 20px; overflow: hidden; transition: all .3s; }
+    .flow-card:hover { transform: translateY(-5px); border-color: rgba(201,168,76,.4); }
+    .flow-num { font-size: 2.6rem; font-weight: 900; color: rgba(201,168,76,.35); line-height: 1; margin-bottom: 14px; }
+    .flow-card h3 { font-size: 1.1rem; font-weight: 800; color: #fff; margin-bottom: 8px; }
+    .flow-card p { font-size: .9rem; color: rgba(255,255,255,.6); line-height: 1.6; }
+    .flow-card.active { border-color: var(--gold); box-shadow: var(--gold-glow); }
+    .flow-card.active .flow-num { color: var(--gold); }
+
+    /* ===== samples (grid cards) ===== */
+    .samples-grid { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    @media (min-width: 700px) { .samples-grid { grid-template-columns: repeat(3, 1fr); } }
+    .scard { display: flex; flex-direction: column; border: 1px solid rgba(255,255,255,.1); border-radius: 18px; overflow: hidden; background: rgba(15,32,53,.5); transition: all .3s; }
+    .scard:hover { transform: translateY(-6px); border-color: rgba(201,168,76,.5); box-shadow: var(--gold-glow); }
+    .scard-cover { aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--navy-light), var(--navy-dark)); position: relative; }
+    .scard-cover span { font-size: 1.4rem; font-weight: 800; color: rgba(201,168,76,.25); }
+    .scard-meta { padding: 16px 18px; border-top: 1px solid rgba(255,255,255,.07); }
+    .scard-tag { color: var(--gold); font-size: .82rem; font-weight: 700; }
+    .scard-meta h3 { color: #fff; font-size: 1.1rem; font-weight: 800; margin-top: 4px; }
+
+    /* ===== testimonials grid ===== */
+    .tgrid { display: grid; grid-template-columns: 1fr; gap: 22px; }
+    @media (min-width: 760px) { .tgrid { grid-template-columns: repeat(3, 1fr); } }
+    .tcard { border: 1px solid rgba(255,255,255,.1); border-radius: 18px; background: rgba(15,32,53,.55); padding: 26px; display: flex; flex-direction: column; transition: all .3s; }
+    .tcard:hover { transform: translateY(-5px); border-color: rgba(201,168,76,.4); }
+    .tcard .tstars { color: var(--gold); letter-spacing: 2px; text-align: left; margin-bottom: 14px; }
+    .tcard .tquote { color: rgba(255,255,255,.85); line-height: 1.8; flex: 1; }
+    .tcard .tfoot { display: flex; align-items: center; gap: 12px; margin-top: 22px; }
+    .tcard .tavatar { width: 46px; height: 46px; border-radius: 999px; background: linear-gradient(150deg, var(--gold-light), var(--gold-dark)); color: var(--navy-dark); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.1rem; flex-shrink: 0; }
+    .tcard .tname { font-weight: 800; color: #fff; }
+    .tcard .trole { font-size: .82rem; color: var(--gold); }
+
+    /* ===== FAQ ===== */
+    .faq-list { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    .faq-item { border: 1px solid rgba(255,255,255,.1); border-radius: 14px; background: rgba(15,32,53,.5); overflow: hidden; }
+    .faq-q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px; text-align: right; color: #fff; font-weight: 700; font-size: 1.02rem; }
+    .faq-q .faq-ico { color: var(--gold); font-size: 1.4rem; transition: transform .3s; flex-shrink: 0; }
+    .faq-item.open .faq-ico { transform: rotate(45deg); }
+    .faq-a { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+    .faq-a p { padding: 0 20px 18px; color: rgba(255,255,255,.65); line-height: 1.8; }
+
+    /* ===== pricing (two panels) ===== */
+    .price-panels { display: grid; grid-template-columns: 1fr; gap: 24px; max-width: 880px; margin: 0 auto; }
+    @media (min-width: 760px) { .price-panels { grid-template-columns: 1fr 1fr; } }
+    .ppanel { border: 1px solid rgba(255,255,255,.1); border-radius: 20px; background: rgba(15,32,53,.55); padding: 28px; }
+    .ppanel.feat { border-color: rgba(201,168,76,.5); box-shadow: var(--gold-glow); }
+    .ppanel h3 { font-size: 1.3rem; font-weight: 800; color: #fff; margin-bottom: 4px; }
+    .ppanel .pp-sub { font-size: .88rem; color: rgba(255,255,255,.55); margin-bottom: 20px; }
+    .price-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px dashed rgba(255,255,255,.1); }
+    .price-row:last-child { border-bottom: none; }
+    .price-row .pr-name { color: rgba(255,255,255,.85); font-weight: 600; }
+    .price-row .pr-val { color: var(--gold); font-weight: 800; font-size: 1.05rem; white-space: nowrap; }
+
+    /* ===== CTA band ===== */
+    .cta-band { text-align: center; padding: 70px 0; }
+    .cta-band .cta-inner { max-width: 720px; margin: 0 auto; border: 1px solid rgba(201,168,76,.3); border-radius: 24px; background: radial-gradient(circle at 50% 0%, rgba(201,168,76,.12), rgba(15,32,53,.5)); padding: 48px 28px; }
+    .cta-band h2 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 800; color: #fff; margin-bottom: 14px; }
+    .cta-band p { color: rgba(255,255,255,.7); max-width: 520px; margin: 0 auto 28px; line-height: 1.7; }
+    .cta-actions { display: flex; flex-direction: column; gap: 14px; justify-content: center; align-items: center; }
+    @media (min-width: 560px) { .cta-actions { flex-direction: row; } }
+
+    /* ===== responsive tuning (smaller screens) ===== */
+    @media (max-width: 768px) {
+      .cinematic { height: 480vh; }              /* shorter cinematic intro on mobile */
+      nav { padding: 12px 0; }
+      .logo-img { height: 44px; }
+      .logo-wordmark b { font-size: 1.2rem; }
+      .logo-wordmark small { font-size: .5rem; letter-spacing: .18em; }
+      .sec { padding: 64px 0; }
+    }
+    @media (max-width: 380px) {
+      .cinematic { height: 400vh; }
+      .logo-wordmark small { display: none; }     /* keep the navbar tidy on tiny screens */
+      .step-nav { flex-wrap: wrap; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+      .reveal { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============ LOADER ============ -->
+  <div id="loader">
+    <img src="logo.png" alt="إتقان" class="loader-logo" />
+    <div class="loader-bar"><span id="loaderFill"></span></div>
+    <div class="loader-text">جارٍ تحميل الفيديو... <span id="loaderPct">0%</span></div>
+  </div>
+
+  <!-- ============ FIXED SCROLL-DRIVEN FRAME SEQUENCE ============ -->
+  <canvas id="seq"></canvas>
+  <div class="video-tint"></div>
+  <div class="video-vignette"></div>
+  <div class="video-fallback"></div>
+
+  <!-- ============ NAVBAR ============ -->
+  <header id="header">
+    <div class="shell">
+      <nav>
+        <a href="#hero" class="logo" aria-label="إتقان — الرئيسية">
+          <img src="logo.png" alt="" class="logo-img" />
+          <span class="logo-wordmark"><b>إتقان</b><small>ACADEMIC STUDIO</small></span>
+        </a>
+        <ul class="nav-links" id="navLinks">
+          <li><a href="#services" data-id="services">الخدمات</a></li>
+          <li><a href="#how" data-id="how">طريقة العمل</a></li>
+          <li><a href="#work" data-id="work">أعمالنا</a></li>
+          <li><a href="#pricing" data-id="pricing">الأسعار</a></li>
+          <li><a href="#faq" data-id="faq">الأسئلة</a></li>
+        </ul>
+        <div class="nav-right">
+          <a href="#request" class="btn btn-fill nav-cta">اطلب الآن</a>
+          <button class="hamburger" id="hamburger" aria-label="فتح القائمة" aria-expanded="false">
+            <span></span><span></span><span></span>
+          </button>
+        </div>
+      </nav>
+    </div>
+    <div class="mobile-menu" id="mobileMenu">
+      <div class="shell">
+        <ul>
+          <li><a href="#services">الخدمات</a></li>
+          <li><a href="#how">طريقة العمل</a></li>
+          <li><a href="#work">أعمالنا</a></li>
+          <li><a href="#pricing">الأسعار</a></li>
+          <li><a href="#faq">الأسئلة</a></li>
+          <li style="margin-top:8px"><a href="#request" class="btn btn-fill btn-full">اطلب الآن</a></li>
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ CINEMATIC SCROLL STAGE (drives the video) ============ -->
+  <section id="hero" class="cinematic">
+    <div class="cine-block pos-top" data-start="0" data-end="0.16">
+      <span class="cine-badge">✦ خدمة الملخصات الدراسية الاحترافية</span>
+    </div>
+    <div class="cine-block" data-start="0.08" data-end="0.46">
+      <h1 class="cine-logo">إتقان<small>التميّز في التلخيص</small></h1>
+    </div>
+    <div class="cine-block pos-lower" data-start="0.42" data-end="0.72">
+      <p class="cine-sub">احصل على ملخص دراسي احترافي لأي كتاب أو مادة في وقت قياسي</p>
+    </div>
+    <div class="cine-block pos-bottom" data-start="0.68" data-end="1" data-persist>
+      <div class="cine-ctas">
+        <a href="#request" class="btn btn-fill" style="padding:16px 36px;font-size:1.1rem">اطلب ملخصك الآن</a>
+        <a href="#how" class="btn btn-outline" style="padding:16px 36px;font-size:1.1rem">اعرف أكثر</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Static hero shown only when prefers-reduced-motion -->
+  <section class="static-hero">
+    <span class="cine-badge" style="margin-bottom:24px">✦ خدمة الملخصات الدراسية الاحترافية</span>
+    <h1 class="cine-logo">إتقان<small>التميّز في التلخيص</small></h1>
+    <p class="cine-sub" style="margin-top:24px">احصل على ملخص دراسي احترافي لأي كتاب أو مادة في وقت قياسي</p>
+    <div class="cine-ctas" style="margin-top:36px">
+      <a href="#request" class="btn btn-fill" style="padding:16px 36px;font-size:1.1rem">اطلب ملخصك الآن</a>
+      <a href="#how" class="btn btn-outline" style="padding:16px 36px;font-size:1.1rem">اعرف أكثر</a>
+    </div>
+  </section>
+
+  <a href="#how" class="scroll-arrow" id="scrollArrow" aria-label="انتقل للأسفل">
+    <span class="mouse"><span class="dot"></span></span>
+  </a>
+
+  <!-- ============ REST OF PAGE (opaque, scrolls above the fixed video) ============ -->
+  <div class="rest">
+
+    <!-- ============ SERVICES ============ -->
+    <section id="services" style="position:relative;padding:clamp(70px,9vw,130px) clamp(16px,5vw,64px);max-width:1240px;margin:0 auto;">
+      <div data-reveal style="text-align:center;margin-bottom:56px;">
+        <div style="font-size:13px;letter-spacing:4px;color:var(--gold);margin-bottom:14px;">الخدمات</div>
+        <h2 style="font-family:'El Messiri',serif;font-size:clamp(30px,4.5vw,52px);font-weight:700;color:var(--cream);">كل ما تحتاجه لمذاكرة أذكى</h2>
+        <p style="margin-top:14px;color:var(--muted);font-size:17px;max-width:54ch;margin-inline:auto;">خدمات أكاديمية متكاملة مصممة لتوفير وقتك ورفع جودة مذاكرتك.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;">
+        <div data-reveal data-tilt style="position:relative;background:linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015));border:1px solid var(--line);border-radius:22px;padding:34px 28px;overflow:hidden;">
+          <div style="position:absolute;top:-40px;left:-40px;width:140px;height:140px;background:radial-gradient(circle,rgba(205,161,74,0.16),transparent 70%);"></div>
+          <div style="width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,rgba(205,161,74,0.2),rgba(205,161,74,0.05));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--goldL);margin-bottom:20px;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h11l5 5v11a0 0 0 0 1 0 0H4z"/><path d="M15 4v5h5"/><path d="M8 13h8M8 17h6"/></svg>
+          </div>
+          <h3 style="font-family:'El Messiri',serif;font-size:23px;font-weight:600;color:#fff;margin-bottom:10px;">ملخصات دراسية</h3>
+          <p style="color:var(--muted);line-height:1.8;font-size:15px;">تحويل المحاضرات والملفات الطويلة إلى ملخص احترافي واضح ومنظم، يركّز على جوهر المادة.</p>
+        </div>
+        <div data-reveal data-tilt style="position:relative;background:linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015));border:1px solid var(--line);border-radius:22px;padding:34px 28px;overflow:hidden;">
+          <div style="position:absolute;top:-40px;left:-40px;width:140px;height:140px;background:radial-gradient(circle,rgba(205,161,74,0.16),transparent 70%);"></div>
+          <div style="width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,rgba(205,161,74,0.2),rgba(205,161,74,0.05));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--goldL);margin-bottom:20px;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M12 17v4M8 21h8M7 9l3 3 4-5"/></svg>
+          </div>
+          <h3 style="font-family:'El Messiri',serif;font-size:23px;font-weight:600;color:#fff;margin-bottom:10px;">عروض PowerPoint</h3>
+          <p style="color:var(--muted);line-height:1.8;font-size:15px;">عروض تقديمية احترافية بتصميم أنيق ومتناسق، جاهزة للعرض والتسليم — مع نص تقديم اختياري.</p>
+        </div>
+        <div data-reveal data-tilt style="position:relative;background:linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015));border:1px solid var(--line);border-radius:22px;padding:34px 28px;overflow:hidden;">
+          <div style="position:absolute;top:-40px;left:-40px;width:140px;height:140px;background:radial-gradient(circle,rgba(205,161,74,0.16),transparent 70%);"></div>
+          <div style="width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,rgba(205,161,74,0.2),rgba(205,161,74,0.05));border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--goldL);margin-bottom:20px;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 11a3 3 0 116 0c0 2-3 2.5-3 5"/><circle cx="12" cy="19" r="0.6" fill="currentColor"/><circle cx="12" cy="12" r="9"/></svg>
+          </div>
+          <h3 style="font-family:'El Messiri',serif;font-size:23px;font-weight:600;color:#fff;margin-bottom:10px;">أسئلة مراجعة واختبارات</h3>
+          <p style="color:var(--muted);line-height:1.8;font-size:15px;">بنك أسئلة تدريبية واختبارات قصيرة لتثبيت المعلومة وقياس استعدادك قبل الاختبار.</p>
+        </div>
+        <div data-reveal data-tilt style="position:relative;background:linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));border:1px dashed var(--line);border-radius:22px;padding:34px 28px;overflow:hidden;">
+          <span style="position:absolute;top:18px;left:18px;font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(205,161,74,0.14);color:var(--gold);border:1px solid var(--line);">قريباً</span>
+          <div style="width:60px;height:60px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);margin-bottom:20px;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="6" r="2.5"/><circle cx="5" cy="18" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M12 8.5v4M12 12.5l-5 3M12 12.5l5 3"/></svg>
+          </div>
+          <h3 style="font-family:'El Messiri',serif;font-size:23px;font-weight:600;color:#dbe4ee;margin-bottom:10px;">خرائط ذهنية بصرية</h3>
+          <p style="color:var(--muted);line-height:1.8;font-size:15px;">تنظيم المفاهيم في خرائط ذهنية وملخصات بصرية تسهّل الحفظ والاسترجاع.</p>
+        </div>
+        <div data-reveal data-tilt style="position:relative;background:linear-gradient(160deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01));border:1px dashed var(--line);border-radius:22px;padding:34px 28px;overflow:hidden;">
+          <span style="position:absolute;top:18px;left:18px;font-size:11px;padding:4px 10px;border-radius:999px;background:rgba(205,161,74,0.14);color:var(--gold);border:1px solid var(--line);">قريباً</span>
+          <div style="width:60px;height:60px;border-radius:16px;background:rgba(255,255,255,0.04);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);margin-bottom:20px;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          </div>
+          <h3 style="font-family:'El Messiri',serif;font-size:23px;font-weight:600;color:#dbe4ee;margin-bottom:10px;">Infographics تعليمية</h3>
+          <p style="color:var(--muted);line-height:1.8;font-size:15px;">تصاميم انفوجرافيك تعليمية تختصر الفصل كامل في صورة واحدة جذابة.</p>
+        </div>
+        <a href="#request" data-reveal data-tilt style="text-decoration:none;position:relative;cursor:pointer;background:linear-gradient(135deg,var(--goldD),var(--gold));border:1px solid var(--goldL);border-radius:22px;padding:34px 28px;overflow:hidden;display:flex;flex-direction:column;justify-content:center;">
+          <h3 style="font-family:'El Messiri',serif;font-size:25px;font-weight:700;color:#1a1206;margin-bottom:10px;">جاهز للبدء؟</h3>
+          <p style="color:#3a2c10;line-height:1.7;font-size:15px;margin-bottom:18px;">ارفع ملفاتك واحصل على ملخصك خلال ساعات.</p>
+          <span style="display:inline-flex;align-items:center;gap:8px;font-weight:800;color:#1a1206;">اطلب الآن
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg>
+          </span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ============ HOW IT WORKS ============ -->
+    <section id="how" style="position:relative;padding:clamp(70px,9vw,130px) clamp(16px,5vw,64px);background:linear-gradient(180deg,transparent,rgba(17,40,63,0.5),transparent);">
+      <div style="max-width:1240px;margin:0 auto;">
+        <div data-reveal style="text-align:center;margin-bottom:60px;">
+          <div style="font-size:13px;letter-spacing:4px;color:var(--gold);margin-bottom:14px;">طريقة العمل</div>
+          <h2 style="font-family:'El Messiri',serif;font-size:clamp(30px,4.5vw,52px);font-weight:700;color:var(--cream);">من الملف إلى الملخص في ٥ خطوات</h2>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:18px;position:relative;">
+          <div data-reveal style="background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px 22px;">
+            <div style="font-family:'El Messiri',serif;font-size:46px;font-weight:700;color:rgba(205,161,74,0.32);line-height:1;">٠١</div>
+            <h4 style="font-size:18px;font-weight:700;color:#fff;margin:10px 0 8px;">ادخل الموقع</h4>
+            <p style="color:var(--muted);font-size:14px;line-height:1.7;">استعرض الخدمات والأعمال السابقة وآراء العملاء.</p>
+          </div>
+          <div data-reveal data-reveal-d="100" style="background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px 22px;">
+            <div style="font-family:'El Messiri',serif;font-size:46px;font-weight:700;color:rgba(205,161,74,0.32);line-height:1;">٠٢</div>
+            <h4 style="font-size:18px;font-weight:700;color:#fff;margin:10px 0 8px;">اختر الخدمة</h4>
+            <p style="color:var(--muted);font-size:14px;line-height:1.7;">ملخص، عرض PowerPoint، أو حزمة مع أسئلة مراجعة.</p>
+          </div>
+          <div data-reveal data-reveal-d="200" style="background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px 22px;">
+            <div style="font-family:'El Messiri',serif;font-size:46px;font-weight:700;color:rgba(205,161,74,0.32);line-height:1;">٠٣</div>
+            <h4 style="font-size:18px;font-weight:700;color:#fff;margin:10px 0 8px;">ارفع ملفاتك</h4>
+            <p style="color:var(--muted);font-size:14px;line-height:1.7;">PDF، Word، صور للملاحظات، أو ملفات المحاضرات.</p>
+          </div>
+          <div data-reveal data-reveal-d="300" style="background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px 22px;">
+            <div style="font-family:'El Messiri',serif;font-size:46px;font-weight:700;color:rgba(205,161,74,0.32);line-height:1;">٠٤</div>
+            <h4 style="font-size:18px;font-weight:700;color:#fff;margin:10px 0 8px;">اختر الإضافات</h4>
+            <p style="color:var(--muted);font-size:14px;line-height:1.7;">أسئلة مراجعة، تصميم احترافي، أو تسليم سريع.</p>
+          </div>
+          <div data-reveal data-reveal-d="400" style="background:linear-gradient(160deg,rgba(205,161,74,0.16),var(--panel));border:1px solid var(--gold);border-radius:18px;padding:28px 22px;">
+            <div style="font-family:'El Messiri',serif;font-size:46px;font-weight:700;color:var(--goldL);line-height:1;">٠٥</div>
+            <h4 style="font-size:18px;font-weight:700;color:#fff;margin:10px 0 8px;">أرسل الطلب</h4>
+            <p style="color:var(--muted);font-size:14px;line-height:1.7;">يصل طلبك فوراً للإدارة ويبدأ العمل عليه.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ WORK / PORTFOLIO ============ -->
+    <section id="work" style="position:relative;padding:clamp(70px,9vw,130px) clamp(16px,5vw,64px);max-width:1240px;margin:0 auto;">
+      <div data-reveal style="text-align:center;margin-bottom:56px;">
+        <div style="font-size:13px;letter-spacing:4px;color:var(--gold);margin-bottom:14px;">أعمالنا</div>
+        <h2 style="font-family:'El Messiri',serif;font-size:clamp(30px,4.5vw,52px);font-weight:700;color:var(--cream);">نماذج من أعمال سابقة</h2>
+        <p style="margin-top:14px;color:var(--muted);font-size:17px;">احترافية تتحدث عن نفسها قبل أن تطلب.</p>
+      </div>
+      <div id="workGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:22px;"></div>
+    </section>
+
+    <!-- ============ TESTIMONIALS ============ -->
+    <section style="position:relative;padding:clamp(70px,9vw,130px) clamp(16px,5vw,64px);max-width:1240px;margin:0 auto;">
+      <div data-reveal style="text-align:center;margin-bottom:56px;">
+        <div style="font-size:13px;letter-spacing:4px;color:var(--gold);margin-bottom:14px;">آراء العملاء</div>
+        <h2 style="font-family:'El Messiri',serif;font-size:clamp(30px,4.5vw,52px);font-weight:700;color:var(--cream);">طلاب أنجزوا أكثر بوقت أقل</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:22px;">
+        <div data-reveal style="background:linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015));border:1px solid var(--line);border-radius:20px;padding:30px 28px;">
+          <div style="color:var(--goldL);font-size:16px;margin-bottom:14px;letter-spacing:3px;">★★★★★</div>
+          <p style="color:#dbe4ee;line-height:1.9;font-size:16px;">«الملخص اختصر عليّ أسبوع مذاكرة. واضح ومنظم وجاني قبل الموعد بكثير.»</p>
+          <div style="margin-top:20px;display:flex;align-items:center;gap:12px;"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--goldD));display:flex;align-items:center;justify-content:center;font-weight:700;color:#1a1206;">س</div><div><div style="color:#fff;font-weight:600;">سارة العامرية</div><div style="color:var(--muted);font-size:13px;">طالبة كلية العلوم</div></div></div>
+        </div>
+        <div data-reveal data-reveal-d="100" style="background:linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015));border:1px solid var(--line);border-radius:20px;padding:30px 28px;">
+          <div style="color:var(--goldL);font-size:16px;margin-bottom:14px;letter-spacing:3px;">★★★★★</div>
+          <p style="color:#dbe4ee;line-height:1.9;font-size:16px;">«طلبت عرض PowerPoint مع نص التقديم، والنتيجة كانت احترافية فوق توقعي. أنصح فيهم.»</p>
+          <div style="margin-top:20px;display:flex;align-items:center;gap:12px;"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--goldD));display:flex;align-items:center;justify-content:center;font-weight:700;color:#1a1206;">ع</div><div><div style="color:#fff;font-weight:600;">عبدالله الحاتمي</div><div style="color:var(--muted);font-size:13px;">طالب إدارة أعمال</div></div></div>
+        </div>
+        <div data-reveal data-reveal-d="200" style="background:linear-gradient(160deg,rgba(255,255,255,0.05),rgba(255,255,255,0.015));border:1px solid var(--line);border-radius:20px;padding:30px 28px;">
+          <div style="color:var(--goldL);font-size:16px;margin-bottom:14px;letter-spacing:3px;">★★★★★</div>
+          <p style="color:#dbe4ee;line-height:1.9;font-size:16px;">«السعر رمزي والجودة عالية. حزمة الملخص مع أسئلة المراجعة رفعت درجتي فعلاً.»</p>
+          <div style="margin-top:20px;display:flex;align-items:center;gap:12px;"><div style="width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--goldD));display:flex;align-items:center;justify-content:center;font-weight:700;color:#1a1206;">م</div><div><div style="color:#fff;font-weight:600;">مريم البلوشية</div><div style="color:var(--muted);font-size:13px;">طالبة محاسبة</div></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PRICING ============ -->
+    <section id="pricing" style="position:relative;padding:clamp(70px,9vw,130px) clamp(16px,5vw,64px);max-width:1240px;margin:0 auto;">
+      <div data-reveal style="text-align:center;margin-bottom:56px;">
+        <div style="font-size:13px;letter-spacing:4px;color:var(--gold);margin-bottom:14px;">التسعير</div>
+        <h2 style="font-family:'El Messiri',serif;font-size:clamp(30px,4.5vw,52px);font-weight:700;color:var(--cream);">أسعار رمزية تناسب الطالب</h2>
+        <p style="margin-top:14px;color:var(--muted);font-size:17px;">شفافية كاملة — كل الأسعار بالريال العماني (OMR).</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:22px;">
+        <div data-reveal style="background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:34px 30px;">
+          <h3 style="font-family:'El Messiri',serif;font-size:24px;color:var(--goldL);margin-bottom:6px;">الملخصات</h3>
+          <p style="color:var(--muted);font-size:14px;margin-bottom:24px;">حسب حجم المادة وعدد الصفحات.</p>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line);"><span style="color:#dbe4ee;">ملخص صغير</span><span style="font-weight:700;color:#fff;">1 <span style="font-size:13px;color:var(--gold);">OMR</span></span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line);"><span style="color:#dbe4ee;">ملخص متوسط</span><span style="font-weight:700;color:#fff;">2 <span style="font-size:13px;color:var(--gold);">OMR</span></span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#dbe4ee;">ملخص كبير</span><span style="font-weight:700;color:#fff;">3 <span style="font-size:13px;color:var(--gold);">OMR</span></span></div>
+          </div>
+        </div>
+        <div data-reveal data-reveal-d="100" style="position:relative;background:linear-gradient(165deg,rgba(205,161,74,0.14),var(--panel));border:1px solid var(--gold);border-radius:22px;padding:34px 30px;box-shadow:0 24px 60px rgba(205,161,74,0.12);">
+          <span style="position:absolute;top:-12px;right:30px;font-size:12px;padding:5px 14px;border-radius:999px;background:linear-gradient(135deg,var(--goldL),var(--goldD));color:#1a1206;font-weight:700;">الأكثر طلباً</span>
+          <h3 style="font-family:'El Messiri',serif;font-size:24px;color:var(--goldL);margin-bottom:6px;">عروض PowerPoint</h3>
+          <p style="color:var(--muted);font-size:14px;margin-bottom:24px;">تصميم احترافي جاهز للتسليم.</p>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line);"><span style="color:#dbe4ee;">عرض بسيط</span><span style="font-weight:700;color:#fff;">2 <span style="font-size:13px;color:var(--gold);">OMR</span></span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line);"><span style="color:#dbe4ee;">عرض متوسط</span><span style="font-weight:700;color:#fff;">3 <span style="font-size:13px;color:var(--gold);">OMR</span></span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#dbe4ee;">عرض احترافي</span><span style="font-weight:700;color:#fff;">4–5 <span style="font-size:13px;color:var(--gold);">OMR</span></span></div>
+          </div>
+        </div>
+        <div data-reveal data-reveal-d="200" style="background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:34px 30px;">
+          <h3 style="font-family:'El Messiri',serif;font-size:24px;color:var(--goldL);margin-bottom:6px;">الإضافات</h3>
+          <p style="color:var(--muted);font-size:14px;margin-bottom:24px;">عزّز طلبك بما تحتاجه.</p>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line);"><span style="color:#dbe4ee;">أسئلة مراجعة</span><span style="font-weight:700;color:#fff;">0.5–1 <span style="font-size:13px;color:var(--gold);">OMR</span></span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid var(--line);"><span style="color:#dbe4ee;">نص تقديم للعرض</span><span style="font-weight:700;color:#fff;">+0.5 <span style="font-size:13px;color:var(--gold);">OMR</span></span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><span style="color:#dbe4ee;">تسليم سريع</span><span style="font-weight:700;color:var(--goldL);">حسب الطلب</span></div>
+          </div>
+        </div>
+      </div>
+      <div data-reveal style="text-align:center;margin-top:42px;"><a href="#request" style="text-decoration:none;display:inline-block;background:linear-gradient(135deg,var(--goldL),var(--goldD));color:#1a1206;border:none;padding:15px 38px;border-radius:999px;font-weight:800;font-size:17px;cursor:pointer;box-shadow:0 14px 36px rgba(205,161,74,0.32);">ابدأ طلبك</a></div>
+    </section>
+
+    <!-- ============ FAQ ============ -->
+    <section id="faq" style="position:relative;padding:clamp(70px,9vw,130px) clamp(16px,5vw,64px);max-width:840px;margin:0 auto;">
+      <div data-reveal style="text-align:center;margin-bottom:50px;">
+        <div style="font-size:13px;letter-spacing:4px;color:var(--gold);margin-bottom:14px;">الأسئلة الشائعة</div>
+        <h2 style="font-family:'El Messiri',serif;font-size:clamp(30px,4.5vw,52px);font-weight:700;color:var(--cream);">عندك سؤال؟ لدينا الإجابة</h2>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <details data-reveal style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:4px 24px;">
+          <summary style="display:flex;justify-content:space-between;align-items:center;padding:20px 0;font-size:17px;font-weight:600;color:#fff;">كم يستغرق تجهيز الملخص؟<span style="color:var(--gold);font-size:22px;">+</span></summary>
+          <p style="color:var(--muted);line-height:1.9;padding:0 0 20px;">عادةً بين ١٢ و٢٤ ساعة حسب حجم المادة. وللطلبات العاجلة نوفّر خيار «تسليم سريع».</p>
+        </details>
+        <details data-reveal style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:4px 24px;">
+          <summary style="display:flex;justify-content:space-between;align-items:center;padding:20px 0;font-size:17px;font-weight:600;color:#fff;">ما صيغ الملفات التي يمكنني رفعها؟<span style="color:var(--gold);font-size:22px;">+</span></summary>
+          <p style="color:var(--muted);line-height:1.9;padding:0 0 20px;">PDF، Word، صور للملاحظات المكتوبة بخط اليد، وملفات المحاضرات. كل ما يلزمنا لفهم المادة.</p>
+        </details>
+        <details data-reveal style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:4px 24px;">
+          <summary style="display:flex;justify-content:space-between;align-items:center;padding:20px 0;font-size:17px;font-weight:600;color:#fff;">كيف أستلم العمل وأدفع؟<span style="color:var(--gold);font-size:22px;">+</span></summary>
+          <p style="color:var(--muted);line-height:1.9;padding:0 0 20px;">نتواصل معك عبر واتساب لتأكيد التفاصيل والدفع، ونرسل الملف النهائي جاهزاً عند الاكتمال.</p>
+        </details>
+        <details data-reveal style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:4px 24px;">
+          <summary style="display:flex;justify-content:space-between;align-items:center;padding:20px 0;font-size:17px;font-weight:600;color:#fff;">هل يمكنني طلب تعديلات؟<span style="color:var(--gold);font-size:22px;">+</span></summary>
+          <p style="color:var(--muted);line-height:1.9;padding:0 0 20px;">نعم، نوفّر مراجعة وتعديلات بسيطة لضمان رضاك التام عن الملخص أو العرض.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ============ CONTACT / CTA ============ -->
+    <section id="contact" style="position:relative;padding:clamp(50px,7vw,90px) clamp(16px,5vw,64px);">
+      <div data-reveal style="max-width:1100px;margin:0 auto;position:relative;border-radius:30px;overflow:hidden;background:linear-gradient(135deg,#11283f,#0a1622);border:1px solid var(--line);padding:clamp(40px,6vw,72px);text-align:center;">
+        <div style="position:absolute;top:-60px;right:-60px;width:240px;height:240px;background:radial-gradient(circle,rgba(205,161,74,0.22),transparent 70%);"></div>
+        <h2 style="font-family:'El Messiri',serif;font-size:clamp(28px,4vw,46px);font-weight:700;color:#fff;position:relative;">ابدأ مذاكرتك بذكاء اليوم</h2>
+        <p style="color:var(--muted);font-size:17px;margin:16px auto 32px;max-width:50ch;position:relative;">أرسل ملفاتك الآن أو تواصل معنا مباشرة عبر واتساب — نحن هنا لمساعدتك على النجاح.</p>
+        <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;position:relative;">
+          <a href="#request" style="text-decoration:none;display:inline-block;background:linear-gradient(135deg,var(--goldL),var(--goldD));color:#1a1206;border:none;padding:15px 34px;border-radius:999px;font-weight:800;font-size:16px;cursor:pointer;">اطلب خدمتك</a>
+          <a id="contactWa" href="https://wa.me/96893890037" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;gap:10px;color:#fff;border:1px solid var(--line);background:var(--panel);padding:15px 30px;border-radius:999px;font-weight:600;font-size:16px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="#3fd17e"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2zm0 18a8 8 0 01-4.1-1.1l-.3-.2-2.9.8.8-2.8-.2-.3A8 8 0 1112 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5.1a6.5 6.5 0 01-3.2-2.8c-.2-.4.2-.4.6-1.2a.4.4 0 000-.4l-.7-1.7c-.2-.5-.4-.4-.5-.4h-.5a1 1 0 00-.7.3 3 3 0 00-.9 2.2 5.2 5.2 0 001 2.7 11.8 11.8 0 004.6 4c2 .8 2 .5 2.4.5a2.7 2.7 0 001.8-1.3 2.2 2.2 0 00.2-1.3c-.1-.1-.3-.2-.5-.3z"/></svg>
+            تواصل عبر واتساب
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- REQUEST FORM -->
+    <section id="request" class="sec bg-navy request-sec">
+      <div class="gold-border"></div>
+      <div class="shell" style="max-width:820px">
+        <div class="sec-title reveal">
+          <span class="eyebrow">ابدأ الآن</span>
+          <h2>اطلب خدمتك</h2>
+          <span class="underline"></span>
+          <p class="sec-sub">اختر الخدمة، ارفع ملفاتك، وأرسل طلبك في دقائق.</p>
+        </div>
+
+        <div class="form-card reveal">
+          <!-- Stepper -->
+          <ol class="stepper" id="stepper">
+            <li class="step-dot active" data-for="1"><span>1</span><b>الخدمة</b></li>
+            <li class="step-dot" data-for="2"><span>2</span><b>الملفات</b></li>
+            <li class="step-dot" data-for="3"><span>3</span><b>الإضافات</b></li>
+            <li class="step-dot" data-for="4"><span>4</span><b>بياناتك</b></li>
+          </ol>
+
+          <form id="orderForm" novalidate>
+            <!-- STEP 1: service -->
+            <div class="step-panel active" data-step="1">
+              <h3 class="step-title">اختر الخدمة المطلوبة</h3>
+              <div class="choice-grid" id="serviceGrid"></div>
+              <span class="err err-block" data-for="service"></span>
+            </div>
+
+            <!-- STEP 2: files + details -->
+            <div class="step-panel" data-step="2">
+              <h3 class="step-title">ارفع ملفاتك وأضف التفاصيل</h3>
+              <div class="dropzone" id="dropzone" tabindex="0">
+                <input id="fileInput" type="file" multiple hidden
+                  accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.txt,.zip" />
+                <div class="dz-icon">📎</div>
+                <p class="dz-main">اسحب الملفات هنا أو <span class="dz-link">اختر من جهازك</span></p>
+                <p class="dz-hint">PDF · Word · PowerPoint · صور — حتى 25 ميجابايت للملف</p>
+              </div>
+              <ul class="file-list" id="fileList"></ul>
+              <span class="err err-block" data-for="files"></span>
+
+              <div class="form-grid" style="margin-top:18px">
+                <div class="field">
+                  <label for="subject">اسم المادة</label>
+                  <input id="subject" name="subject" type="text" placeholder="مثال: مبادئ المحاسبة" />
+                  <span class="err" data-for="subject"></span>
+                </div>
+                <div class="field">
+                  <label for="deadline">الموعد النهائي</label>
+                  <input id="deadline" name="deadline" type="date" />
+                  <span class="err" data-for="deadline"></span>
+                </div>
+                <div class="field full">
+                  <label for="notes">ملاحظات خاصة</label>
+                  <textarea id="notes" name="notes" placeholder="أي تفاصيل تساعدنا على خدمتك بشكل أفضل..."></textarea>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 3: add-ons -->
+            <div class="step-panel" data-step="3">
+              <h3 class="step-title">إضافات اختيارية</h3>
+              <div class="addon-list" id="addonList"></div>
+            </div>
+
+            <!-- STEP 4: customer info + review -->
+            <div class="step-panel" data-step="4">
+              <h3 class="step-title">بياناتك وتأكيد الطلب</h3>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="name">الاسم الكامل</label>
+                  <input id="name" name="name" type="text" placeholder="مثال: محمد العبدالله" />
+                  <span class="err" data-for="name"></span>
+                </div>
+                <div class="field">
+                  <label for="email">البريد الإلكتروني</label>
+                  <input id="email" name="email" type="email" dir="ltr" placeholder="you@example.com" />
+                  <span class="err" data-for="email"></span>
+                </div>
+                <div class="field full">
+                  <label for="whatsapp">رقم الواتساب</label>
+                  <input id="whatsapp" name="whatsapp" type="tel" dir="ltr" placeholder="+968 9x xxx xxx" />
+                  <span class="err" data-for="whatsapp"></span>
+                </div>
+              </div>
+              <div class="summary" id="orderSummary"></div>
+            </div>
+
+            <!-- Nav -->
+            <div class="step-nav">
+              <button type="button" class="btn btn-outline" id="prevBtn" style="visibility:hidden">السابق</button>
+              <button type="button" class="btn btn-fill" id="nextBtn">التالي</button>
+              <button type="submit" class="btn btn-fill" id="submitBtn" style="display:none">إرسال الطلب</button>
+            </div>
+          </form>
+
+          <div class="success" id="successBox">
+            <div class="success-check">
+              <svg viewBox="0 0 52 52" width="40" height="40" fill="none" stroke="#0a0e17" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 27l8 8 16-18" />
+              </svg>
+            </div>
+            <h3>تم استلام طلبك بنجاح!</h3>
+            <p>شكراً لثقتك بإتقان. رقم طلبك: <b id="orderNumber" class="order-number"></b><br/>وصلنا طلبك وسنتواصل معك قريباً عبر الواتساب لتأكيد التفاصيل والدفع — لا حاجة لأي خطوة إضافية منك.</p>
+            <a id="waConfirm" href="#" target="_blank" rel="noopener" class="btn btn-fill" style="margin-top:8px;background:linear-gradient(135deg,#3fd17e,#1f9e58);color:#04210f;display:inline-flex;align-items:center;gap:10px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2zm0 18a8 8 0 01-4.1-1.1l-.3-.2-2.9.8.8-2.8-.2-.3A8 8 0 1112 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5.1a6.5 6.5 0 01-3.2-2.8c-.2-.4.2-.4.6-1.2a.4.4 0 000-.4l-.7-1.7c-.2-.5-.4-.4-.5-.4h-.5a1 1 0 00-.7.3 3 3 0 00-.9 2.2 5.2 5.2 0 001 2.7 11.8 11.8 0 004.6 4c2 .8 2 .5 2.4.5a2.7 2.7 0 001.8-1.3 2.2 2.2 0 00.2-1.3c-.1-.1-.3-.2-.5-.3z"/></svg>
+              تواصل معنا عبر واتساب (اختياري)
+            </a>
+            <button type="button" id="resetForm" style="display:block;margin:18px auto 0;">إرسال طلب آخر</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer style="position:relative;border-top:1px solid var(--line);padding:48px clamp(16px,5vw,64px) 36px;">
+      <div style="max-width:1240px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:24px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <img src="logo.png" alt="إتقان" style="height:40px;"/>
+          <div><div style="font-family:'Reem Kufi',serif;font-size:19px;color:var(--cream);font-weight:700;">إتقان</div><div style="font-size:12px;color:var(--muted);">منصة الملخصات والخدمات الأكاديمية</div></div>
+        </div>
+        <div style="display:flex;gap:24px;font-size:14px;color:var(--muted);" class="footer-links">
+          <a href="#services" style="color:inherit;text-decoration:none;">الخدمات</a>
+          <a href="#pricing" style="color:inherit;text-decoration:none;">الأسعار</a>
+          <a href="#faq" style="color:inherit;text-decoration:none;">الأسئلة</a>
+          <a href="/admin" id="ownerDashLink" style="color:var(--gold);text-decoration:none;display:none;">لوحة التحكم</a>
+        </div>
+      </div>
+      <div style="max-width:1240px;margin:28px auto 0;padding-top:20px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);text-align:center;">© ٢٠٢٦ إتقان — جميع الحقوق محفوظة.</div>
+    </footer>
+
+  </div><!-- /.rest -->
+
+  <script>
+    (function () {
+      'use strict';
+
+      function el(id) { return document.getElementById(id); }
+      function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+      var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      /* ===================== FAQ ACCORDION ===================== */
+      var faqList = el('faqList');
+      if (faqList) {
+        faqList.querySelectorAll('.faq-item').forEach(function (item) {
+          var q = item.querySelector('.faq-q');
+          var a = item.querySelector('.faq-a');
+          q.addEventListener('click', function () {
+            var isOpen = item.classList.contains('open');
+            faqList.querySelectorAll('.faq-item').forEach(function (other) {
+              other.classList.remove('open');
+              var oa = other.querySelector('.faq-a');
+              if (oa) oa.style.maxHeight = null;
+            });
+            if (!isOpen) {
+              item.classList.add('open');
+              a.style.maxHeight = a.scrollHeight + 'px';
+            }
+          });
+        });
+      }
+
+      /* ===================== SCROLL-DRIVEN FRAME SEQUENCE ENGINE ===================== */
+      // The video was pre-rendered into individual JPG frames (frames/frame_0001.jpg …).
+      // Scroll position picks which frame to paint onto the canvas — true frame-by-frame
+      // scrubbing with no video seeking, so it stays perfectly smooth.
+      var FRAME_COUNT = 612;
+      var canvas = el('seq');
+      var ctx = canvas.getContext('2d');
+      var loader = el('loader');
+      var loaderFill = el('loaderFill');
+      var loaderPct = el('loaderPct');
+      var stage = el('hero');
+      var arrow = el('scrollArrow');
+      var blocks = document.querySelectorAll('.cine-block');
+
+      var images = new Array(FRAME_COUNT);
+      var loadedCount = 0;
+      var introScroll = 1;
+      var lastFrame = -1;
+      var ticking = false;
+      var loaderHidden = false;
+      var dpr = 1;
+
+      function hideLoader() { if (loaderHidden) return; loaderHidden = true; loader.classList.add('hidden'); }
+      function computeIntro() { introScroll = Math.max(1, stage.offsetHeight - window.innerHeight); }
+      function pad4(n) { n = String(n); while (n.length < 4) n = '0' + n; return n; }
+      function framePath(i) { return 'frames/frame_' + pad4(i) + '.jpg'; }
+      function scrollFraction() { return clamp(window.scrollY / introScroll, 0, 1); }
+      function frameForFraction(frac) { return Math.round(frac * (FRAME_COUNT - 1)); }
+
+      function resizeCanvas() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(window.innerWidth * dpr);
+        canvas.height = Math.floor(window.innerHeight * dpr);
+        lastFrame = -1; // force redraw at new size
+        drawFrame(frameForFraction(scrollFraction()));
+      }
+
+      function drawCover(img) {
+        var cw = canvas.width, ch = canvas.height;
+        var iw = img.naturalWidth, ih = img.naturalHeight;
+        if (!iw || !ih) return;
+        var scale = Math.max(cw / iw, ch / ih);
+        var w = iw * scale, h = ih * scale;
+        ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
+      }
+
+      function drawFrame(idx) {
+        if (idx === lastFrame) return;
+        var img = images[idx];
+        if (img && img.complete && img.naturalWidth) {
+          drawCover(img);
+          lastFrame = idx;
+        }
+      }
+
+      function paintBlocks(frac) {
+        for (var i = 0; i < blocks.length; i++) {
+          var b = blocks[i];
+          var start = parseFloat(b.getAttribute('data-start'));
+          var end = parseFloat(b.getAttribute('data-end'));
+          var persist = b.hasAttribute('data-persist');
+          if (frac >= start && (persist || frac <= end)) {
+            var range = Math.max(0.0001, end - start);
+            var p = (frac - start) / range;
+            var op;
+            if (p < 0.3) op = p / 0.3;
+            else if (!persist && p > 0.7) op = (1 - p) / 0.3;
+            else op = 1;
+            b.style.opacity = clamp(op, 0, 1);
+            var ty = (1 - Math.min(p / 0.3, 1)) * 30;
+            b.style.transform = 'translateY(' + ty + 'px)';
+          } else {
+            b.style.opacity = 0;
+          }
+        }
+        if (arrow) arrow.style.opacity = clamp(1 - frac * 6, 0, 1);
+      }
+
+      function update() {
+        var frac = scrollFraction();
+        drawFrame(frameForFraction(frac));
+        paintBlocks(frac);
+      }
+
+      function onScroll() {
+        if (ticking) return;
+        ticking = true;
+        // rAF keeps it smooth on visible tabs; fall back to a direct draw when the
+        // tab is hidden (rAF is paused there) so the frame still tracks scroll.
+        if (typeof requestAnimationFrame === 'function' && !document.hidden) {
+          requestAnimationFrame(function () { update(); ticking = false; });
+        } else {
+          update();
+          ticking = false;
+        }
+      }
+
+      function onAllLoaded() {
+        resizeCanvas();
+        if (!images[0] || !images[0].naturalWidth) {
+          document.body.classList.add('video-failed'); // frames missing → gradient fallback
+        }
+        hideLoader();
+      }
+
+      function preloadFrames() {
+        for (var i = 1; i <= FRAME_COUNT; i++) {
+          (function (i) {
+            var img = new Image();
+            img.onload = img.onerror = function () {
+              loadedCount++;
+              var pct = Math.round((loadedCount / FRAME_COUNT) * 100);
+              if (loaderFill) loaderFill.style.width = pct + '%';
+              if (loaderPct) loaderPct.textContent = pct + '%';
+              // Draw the first frame as soon as it lands so the hero isn't blank.
+              if (i === 1) { resizeCanvas(); }
+              if (loadedCount === FRAME_COUNT) onAllLoaded();
+            };
+            img.src = framePath(i);
+            images[i - 1] = img;
+          })(i);
+        }
+      }
+
+      // The scroll-driven frame sequence is fully user-controlled (1:1 with scroll
+      // input, not autonomous motion), so it runs even under prefers-reduced-motion.
+      computeIntro();
+      resizeCanvas();
+      preloadFrames();
+      window.addEventListener('scroll', onScroll, { passive: true });
+      window.addEventListener('resize', function () { computeIntro(); resizeCanvas(); });
+      // Safety net: never let the loader trap the user on a slow connection.
+      setTimeout(hideLoader, 25000);
+
+      /* ===================== NAVBAR: blur + scroll-spy ===================== */
+      var header = el('header');
+      var navAnchors = el('navLinks').querySelectorAll('a');
+      var sectionIds = ['hero', 'services', 'how', 'work', 'pricing', 'faq'];
+      function onNavScroll() {
+        var blurPoint = Math.max(40, introScroll - 100);
+        header.classList.toggle('scrolled', window.scrollY > blurPoint);
+        var pos = window.scrollY + 130, activeId = sectionIds[0];
+        sectionIds.forEach(function (id) {
+          var sec = el(id);
+          if (sec && sec.offsetTop <= pos) activeId = id;
+        });
+        navAnchors.forEach(function (a) { a.classList.toggle('active', a.getAttribute('data-id') === activeId); });
+      }
+      window.addEventListener('scroll', onNavScroll, { passive: true });
+      onNavScroll();
+
+      /* ===================== MOBILE MENU ===================== */
+      var hamburger = el('hamburger');
+      var mobileMenu = el('mobileMenu');
+      function closeMenu() {
+        hamburger.classList.remove('open');
+        mobileMenu.classList.remove('open');
+        hamburger.setAttribute('aria-expanded', 'false');
+        hamburger.setAttribute('aria-label', 'فتح القائمة');
+      }
+      hamburger.addEventListener('click', function () {
+        var open = hamburger.classList.toggle('open');
+        mobileMenu.classList.toggle('open', open);
+        hamburger.setAttribute('aria-expanded', String(open));
+        hamburger.setAttribute('aria-label', open ? 'إغلاق القائمة' : 'فتح القائمة');
+      });
+      mobileMenu.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', closeMenu); });
+
+      /* ===================== REVEAL ON SCROLL + TILT (design FX) ===================== */
+      var reveals = document.querySelectorAll('.reveal, [data-reveal]');
+      reveals.forEach(function (r) {
+        var d = parseInt(r.getAttribute('data-reveal-d') || '0', 10);
+        if (d) r.style.transitionDelay = (d / 1000) + 's';
+      });
+      if (reduced || !('IntersectionObserver' in window)) {
+        reveals.forEach(function (r) { r.classList.add('in'); });
+      } else {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+        }, { threshold: 0.12 });
+        reveals.forEach(function (r) { io.observe(r); });
+      }
+
+      // 3D tilt on hover (design data-tilt)
+      if (!reduced) {
+        document.querySelectorAll('[data-tilt]').forEach(function (card) {
+          card.addEventListener('pointerenter', function () { card.style.transition = 'transform .15s ease-out'; });
+          card.addEventListener('pointermove', function (ev) {
+            var r = card.getBoundingClientRect();
+            var px = (ev.clientX - r.left) / r.width - 0.5;
+            var py = (ev.clientY - r.top) / r.height - 0.5;
+            card.style.transform = 'perspective(900px) rotateX(' + (-py * 7).toFixed(2) + 'deg) rotateY(' + (px * 9).toFixed(2) + 'deg) translateZ(8px)';
+          });
+          card.addEventListener('pointerleave', function () { card.style.transition = 'transform .5s cubic-bezier(.16,1,.3,1)'; card.style.transform = 'perspective(900px) rotateX(0) rotateY(0)'; });
+        });
+      }
+
+      /* ===================== MULTI-STEP ORDER FLOW ===================== */
+      // Business WhatsApp number — default, then overridden by the value saved in the dashboard.
+      var WHATSAPP_NUMBER = '96893890037';
+      fetch('/api/settings').then(function (r) { return r.json(); }).then(function (j) {
+        if (j && j.ok && j.settings && j.settings.whatsapp) {
+          WHATSAPP_NUMBER = j.settings.whatsapp;
+          var cw = el('contactWa');
+          if (cw) cw.href = 'https://wa.me/' + WHATSAPP_NUMBER;
+        }
+      }).catch(function () { /* keep default */ });
+      var SERVICES = [
+        { id: 'ملخص دراسي', name: 'ملخص دراسي', desc: 'تلخيص احترافي واضح لملفاتك', price: 'من 1 ر.ع' },
+        { id: 'عرض PowerPoint', name: 'عرض PowerPoint', desc: 'شرائح احترافية جاهزة للعرض', price: 'من 2 ر.ع' },
+        { id: 'ملخص + أسئلة مراجعة', name: 'ملخص + أسئلة', desc: 'ملخص مع أسئلة تدريبية', price: 'من 1.5 ر.ع' },
+        { id: 'عرض PowerPoint + نص تقديم', name: 'عرض + نص تقديم', desc: 'شرائح مع نص للإلقاء', price: 'من 3 ر.ع' }
+      ];
+      var ADDONS = [
+        { id: 'أسئلة مراجعة', name: 'أسئلة مراجعة', desc: 'أسئلة واختبارات تدريبية', price: '+0.5–1 ر.ع' },
+        { id: 'تصميم احترافي', name: 'تصميم احترافي', desc: 'تنسيق وتصميم مميّز', price: 'حسب الطلب' },
+        { id: 'تسليم سريع', name: 'تسليم سريع', desc: 'أولوية في التنفيذ', price: 'حسب الطلب' }
+      ];
+      var ALLOWED_EXT = ['pdf','doc','docx','ppt','pptx','png','jpg','jpeg','webp','txt','zip'];
+      var MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+      var form = el('orderForm');
+      var submitBtn = el('submitBtn');
+      var nextBtn = el('nextBtn');
+      var prevBtn = el('prevBtn');
+      var successBox = el('successBox');
+      var panels = form.querySelectorAll('.step-panel');
+      var dots = el('stepper').querySelectorAll('.step-dot');
+      var TOTAL_STEPS = panels.length;
+
+      var state = { service: '', addons: {}, files: [] };
+      var step = 1;
+
+      function fmtSize(b) { return b < 1024*1024 ? Math.round(b/1024)+' KB' : (b/1024/1024).toFixed(1)+' MB'; }
+      function setError(name, msg) {
+        var input = form.querySelector('[name="' + name + '"]');
+        var errEl = form.querySelector('.err[data-for="' + name + '"]');
+        if (errEl) errEl.textContent = msg || '';
+        if (input) input.classList.toggle('invalid', !!msg);
+      }
+
+      // ---- render service cards ----
+      var serviceGrid = el('serviceGrid');
+      SERVICES.forEach(function (s) {
+        var d = document.createElement('div');
+        d.className = 'choice';
+        d.setAttribute('role', 'button');
+        d.innerHTML = '<span class="c-name">' + s.name + '</span><span class="c-desc">' + s.desc + '</span><span class="c-price">' + s.price + '</span>';
+        d.addEventListener('click', function () {
+          state.service = s.id;
+          serviceGrid.querySelectorAll('.choice').forEach(function (c) { c.classList.remove('selected'); });
+          d.classList.add('selected');
+          setError('service', '');
+        });
+        serviceGrid.appendChild(d);
+      });
+
+      // ---- render addons ----
+      var addonList = el('addonList');
+      ADDONS.forEach(function (a) {
+        var row = document.createElement('div');
+        row.className = 'addon';
+        row.innerHTML = '<span class="a-check">✓</span><span class="a-body"><span class="a-name">' + a.name + '</span><br><span class="a-desc">' + a.desc + '</span></span><span class="a-price">' + a.price + '</span>';
+        row.addEventListener('click', function () {
+          state.addons[a.id] = !state.addons[a.id];
+          row.classList.toggle('selected', state.addons[a.id]);
+        });
+        addonList.appendChild(row);
+      });
+
+      // ---- file handling ----
+      var dropzone = el('dropzone');
+      var fileInput = el('fileInput');
+      var fileList = el('fileList');
+
+      function renderFiles() {
+        fileList.innerHTML = '';
+        state.files.forEach(function (f, idx) {
+          var li = document.createElement('li');
+          li.className = 'file-row';
+          li.innerHTML = '<span class="f-name">' + f.name + '</span><span class="f-size">' + fmtSize(f.size) + '</span>';
+          var del = document.createElement('button');
+          del.type = 'button'; del.className = 'f-del'; del.textContent = '×'; del.setAttribute('aria-label', 'حذف');
+          del.addEventListener('click', function () { state.files.splice(idx, 1); renderFiles(); });
+          li.appendChild(del);
+          fileList.appendChild(li);
+        });
+      }
+      function addFiles(list) {
+        var rejected = [];
+        Array.prototype.forEach.call(list, function (f) {
+          var ext = (f.name.split('.').pop() || '').toLowerCase();
+          if (ALLOWED_EXT.indexOf(ext) === -1) { rejected.push(f.name + ' (نوع غير مدعوم)'); return; }
+          if (f.size > MAX_FILE_BYTES) { rejected.push(f.name + ' (أكبر من 25MB)'); return; }
+          if (state.files.length >= 10) { rejected.push(f.name + ' (تجاوزت 10 ملفات)'); return; }
+          state.files.push(f);
+        });
+        renderFiles();
+        setError('files', rejected.length ? ('تم تجاهل: ' + rejected.join('، ')) : '');
+      }
+      dropzone.addEventListener('click', function () { fileInput.click(); });
+      dropzone.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+      fileInput.addEventListener('change', function () { addFiles(fileInput.files); fileInput.value = ''; });
+      ['dragenter','dragover'].forEach(function (ev) { dropzone.addEventListener(ev, function (e) { e.preventDefault(); dropzone.classList.add('drag'); }); });
+      ['dragleave','drop'].forEach(function (ev) { dropzone.addEventListener(ev, function (e) { e.preventDefault(); dropzone.classList.remove('drag'); }); });
+      dropzone.addEventListener('drop', function (e) { if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files); });
+
+      // ---- step navigation ----
+      function showStep(n) {
+        step = n;
+        panels.forEach(function (p) { p.classList.toggle('active', Number(p.getAttribute('data-step')) === n); });
+        dots.forEach(function (d) {
+          var i = Number(d.getAttribute('data-for'));
+          d.classList.toggle('active', i === n);
+          d.classList.toggle('done', i < n);
+        });
+        prevBtn.style.visibility = n === 1 ? 'hidden' : 'visible';
+        nextBtn.style.display = n === TOTAL_STEPS ? 'none' : 'inline-flex';
+        submitBtn.style.display = n === TOTAL_STEPS ? 'inline-flex' : 'none';
+        if (n === TOTAL_STEPS) renderSummary();
+        el('request').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      function validateStep(n) {
+        var ok = true;
+        if (n === 1) {
+          if (!state.service) { setError('service', 'الرجاء اختيار الخدمة المطلوبة.'); ok = false; }
+        } else if (n === 2) {
+          if (state.files.length === 0) { setError('files', 'الرجاء رفع ملف واحد على الأقل.'); ok = false; }
+          if (!form.subject.value.trim()) { setError('subject', 'الرجاء إدخال اسم المادة.'); ok = false; } else setError('subject', '');
+        } else if (n === 4) {
+          var name = form.name.value.trim(), email = form.email.value.trim(), wa = form.whatsapp.value.trim();
+          setError('name',''); setError('email',''); setError('whatsapp','');
+          if (!name) { setError('name', 'الرجاء إدخال الاسم الكامل.'); ok = false; }
+          if (!email) { setError('email', 'الرجاء إدخال البريد الإلكتروني.'); ok = false; }
+          else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('email', 'صيغة البريد الإلكتروني غير صحيحة.'); ok = false; }
+          if (!wa) { setError('whatsapp', 'الرجاء إدخال رقم الواتساب.'); ok = false; }
+          else if (!/^[0-9+\-\s]{7,}$/.test(wa)) { setError('whatsapp', 'رقم الواتساب غير صحيح.'); ok = false; }
+        }
+        return ok;
+      }
+
+      function renderSummary() {
+        var box = el('orderSummary');
+        var addonNames = Object.keys(state.addons).filter(function (k) { return state.addons[k]; });
+        function row(k, v) { return '<div class="summary-row"><span class="s-key">' + k + '</span><span class="s-val">' + v + '</span></div>'; }
+        box.innerHTML = '<h4>ملخص الطلب</h4>' +
+          row('الخدمة', state.service || '—') +
+          row('الملفات', state.files.length + ' ملف') +
+          row('المادة', form.subject.value.trim() || '—') +
+          row('الموعد النهائي', form.deadline.value || 'غير محدد') +
+          row('الإضافات', addonNames.length ? addonNames.join('، ') : 'لا يوجد');
+      }
+
+      nextBtn.addEventListener('click', function () { if (validateStep(step)) showStep(Math.min(step + 1, TOTAL_STEPS)); });
+      prevBtn.addEventListener('click', function () { showStep(Math.max(step - 1, 1)); });
+
+      // ---- submit to backend ----
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        if (!validateStep(4)) return;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner"></span> جارٍ الإرسال...';
+
+        var fd = new FormData();
+        fd.append('service', state.service);
+        fd.append('subject', form.subject.value.trim());
+        fd.append('deadline', form.deadline.value);
+        fd.append('notes', form.notes.value.trim());
+        fd.append('name', form.name.value.trim());
+        fd.append('email', form.email.value.trim());
+        fd.append('whatsapp', form.whatsapp.value.trim());
+        Object.keys(state.addons).filter(function (k) { return state.addons[k]; }).forEach(function (a) { fd.append('addons', a); });
+        state.files.forEach(function (f) { fd.append('files', f, f.name); });
+
+        fetch('/api/order', { method: 'POST', body: fd })
+          .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+          .then(function (res) {
+            if (res.ok && res.j.ok) {
+              var orderNo = '#' + res.j.orderId;
+              el('orderNumber').textContent = orderNo;
+              // Pre-filled WhatsApp confirmation containing the order number.
+              var waMsg = 'مرحباً إتقان 👋\nأرغب بتأكيد طلبي:\nرقم الطلب: ' + orderNo +
+                '\nالخدمة: ' + state.service +
+                '\nالمادة: ' + (form.subject.value.trim() || '—') +
+                '\nالاسم: ' + form.name.value.trim();
+              var wa = el('waConfirm');
+              if (wa) wa.href = 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(waMsg);
+              form.style.display = 'none';
+              el('stepper').style.display = 'none';
+              successBox.classList.add('show');
+            } else {
+              throw new Error((res.j && res.j.error) || 'تعذّر إرسال الطلب.');
+            }
+          })
+          .catch(function (err) {
+            setError('whatsapp', err.message || 'حدث خطأ في الاتصال. حاول مرة أخرى.');
+          })
+          .finally(function () {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'إرسال الطلب';
+          });
+      });
+
+      el('resetForm').addEventListener('click', function () {
+        form.reset();
+        state = { service: '', addons: {}, files: [] };
+        serviceGrid.querySelectorAll('.choice').forEach(function (c) { c.classList.remove('selected'); });
+        addonList.querySelectorAll('.addon').forEach(function (a) { a.classList.remove('selected'); });
+        renderFiles();
+        ['service','files','subject','name','email','whatsapp'].forEach(function (k) { setError(k, ''); });
+        successBox.classList.remove('show');
+        form.style.display = 'block';
+        el('stepper').style.display = 'flex';
+        showStep(1);
+      });
+
+      showStep(1);
+
+      /* ===================== WORK / PORTFOLIO (managed from dashboard) ===================== */
+      var workGrid = el('workGrid');
+      function escHtml(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+      function renderWork(items) {
+        if (!workGrid) return;
+        workGrid.innerHTML = items.map(function (it, i) {
+          var delay = i ? ' data-reveal-d="' + (i * 100) + '"' : '';
+          var cover = it.image
+            ? '<img src="work-images/' + escHtml(it.image) + '" alt="' + escHtml(it.title) + '" style="width:100%;height:210px;object-fit:cover;display:block;" />'
+            : '<div style="width:100%;height:210px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#11283f,#0a1622);color:rgba(205,161,74,0.4);font-family:\'El Messiri\',serif;font-size:20px;">' + escHtml(it.title) + '</div>';
+          return '<div data-reveal' + delay + ' style="background:var(--panel);border:1px solid var(--line);border-radius:20px;overflow:hidden;">' +
+            cover +
+            '<div style="padding:18px 20px;"><div style="font-size:12px;color:var(--gold);letter-spacing:1px;">' + escHtml(it.tag) + '</div>' +
+            '<h4 style="font-size:18px;color:#fff;margin-top:6px;">' + escHtml(it.title) + '</h4></div></div>';
+        }).join('');
+        // re-apply reveal to the freshly inserted cards
+        workGrid.querySelectorAll('[data-reveal]').forEach(function (r) {
+          var d = parseInt(r.getAttribute('data-reveal-d') || '0', 10);
+          if (d) r.style.transitionDelay = (d / 1000) + 's';
+          if (reduced || !('IntersectionObserver' in window)) { r.classList.add('in'); }
+          else { var o = new IntersectionObserver(function (en) { en.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); o.unobserve(e.target); } }); }, { threshold: 0.12 }); o.observe(r); }
+        });
+      }
+      fetch('/api/work').then(function (r) { return r.json(); }).then(function (j) {
+        if (j && j.ok && j.items && j.items.length) renderWork(j.items);
+      }).catch(function () { /* keep section empty on failure */ });
+
+      /* ===================== OWNER-ONLY DASHBOARD LINK ===================== */
+      // The «لوحة التحكم» link is shown only to authorized owners — i.e. visitors
+      // who have signed into /admin with one of the allowed emails (stored locally).
+      var OWNER_EMAILS = ['zumurud889@gmail.com', 'albaraalsubhi62@gmail.com'];
+      try {
+        var ownerEmail = (localStorage.getItem('itqan_owner_email') || '').trim().toLowerCase();
+        if (OWNER_EMAILS.indexOf(ownerEmail) !== -1) {
+          var dl = el('ownerDashLink');
+          if (dl) dl.style.display = '';
+        }
+      } catch (e) {}
+    })();
+  </script>
+</body>
+</html>

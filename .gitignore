@@ -1,0 +1,37 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# admin password & customer order data — never commit
+admin-config.json
+orders/
+
+# runtime content managed from the dashboard
+settings.json
+work.json
+work-images/
+
+# unused source videos (the site renders the hero from frames/ instead)
+*.mp4
+
+# reference material (not part of the site)
+ETQAN.pdf
+*.zip
+*.tsbuildinfo
+
+# leftover Vite/React scaffold — the project is now a standalone HTML + Node server
+src/
+dist/
+vite.config.ts
+tsconfig.json
+tsconfig.app.json
+tsconfig.node.json
+tailwind.config.js
+postcss.config.js

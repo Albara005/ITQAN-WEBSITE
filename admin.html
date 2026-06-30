@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>إتقان | لوحة التحكم</title>
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root { --navy:#0d1b2e; --navy-light:#0f2035; --navy-dark:#0a0e17; --gold:#c9a84c; --gold-light:#d4b96a; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:'Tajawal',system-ui,sans-serif; background:var(--navy-dark); color:#f5f5f5; min-height:100vh; }
+    a { color:inherit; text-decoration:none; }
+    button { font-family:inherit; cursor:pointer; border:none; background:none; }
+    .shell { max-width:1180px; margin:0 auto; padding:0 20px; }
+
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; border-radius:10px; padding:10px 18px; font-weight:700; transition:all .2s; }
+    .btn-gold { background:var(--gold); color:var(--navy-dark); }
+    .btn-gold:hover { background:var(--gold-light); }
+    .btn-ghost { border:1px solid rgba(255,255,255,.2); color:#fff; }
+    .btn-ghost:hover { background:rgba(255,255,255,.06); }
+
+    /* header */
+    header { background:rgba(13,27,46,.9); border-bottom:1px solid rgba(255,255,255,.08); position:sticky; top:0; z-index:10; }
+    header .bar { display:flex; align-items:center; justify-content:space-between; padding:14px 0; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand img { height:42px; }
+    .brand h1 { font-size:1.15rem; font-weight:800; }
+    .brand h1 small { display:block; font-size:.72rem; color:var(--gold); font-weight:500; }
+
+    /* login */
+    .login-wrap { min-height:80vh; display:flex; align-items:center; justify-content:center; }
+    .login-card { width:100%; max-width:380px; background:var(--navy-light); border:1px solid rgba(255,255,255,.1); border-radius:18px; padding:34px; text-align:center; }
+    .login-card img { height:70px; margin-bottom:18px; }
+    .login-card h2 { font-size:1.3rem; font-weight:800; margin-bottom:6px; }
+    .login-card p { color:rgba(255,255,255,.6); font-size:.9rem; margin-bottom:22px; }
+    .login-card input { width:100%; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:var(--navy-dark); color:#fff; padding:12px 14px; font-size:1rem; outline:none; margin-bottom:14px; text-align:center; }
+    .login-card input:focus { border-color:var(--gold); }
+    .login-err { color:#f87171; font-size:.85rem; min-height:1.2em; margin-bottom:8px; }
+
+    /* stats */
+    .stats { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin:26px 0; }
+    @media (min-width:700px){ .stats { grid-template-columns:repeat(4,1fr); } }
+    .stat { background:var(--navy-light); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:18px; }
+    .stat .n { font-size:1.8rem; font-weight:900; color:var(--gold); }
+    .stat .l { font-size:.85rem; color:rgba(255,255,255,.65); }
+
+    /* table */
+    .panel { background:var(--navy-light); border:1px solid rgba(255,255,255,.08); border-radius:16px; overflow:hidden; }
+    .panel-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid rgba(255,255,255,.08); }
+    .panel-head h3 { font-size:1.05rem; font-weight:800; }
+    table { width:100%; border-collapse:collapse; }
+    th,td { padding:13px 16px; text-align:right; font-size:.9rem; border-bottom:1px solid rgba(255,255,255,.06); white-space:nowrap; }
+    th { color:rgba(255,255,255,.55); font-weight:700; font-size:.8rem; }
+    tbody tr { cursor:pointer; transition:background .15s; }
+    tbody tr:hover { background:rgba(255,255,255,.04); }
+    .oid { color:var(--gold); font-weight:800; }
+    .muted { color:rgba(255,255,255,.55); }
+    .empty { text-align:center; padding:50px; color:rgba(255,255,255,.5); }
+    .table-scroll { overflow-x:auto; }
+
+    .badge { display:inline-block; padding:3px 11px; border-radius:999px; font-size:.78rem; font-weight:700; }
+    .s-new { background:rgba(96,165,250,.18); color:#93c5fd; }
+    .s-in_progress { background:rgba(201,168,76,.2); color:var(--gold-light); }
+    .s-ready { background:rgba(52,211,153,.18); color:#6ee7b7; }
+    .s-delivered { background:rgba(255,255,255,.12); color:rgba(255,255,255,.7); }
+
+    /* drawer */
+    .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; z-index:40; }
+    .overlay.open { display:block; }
+    .drawer { position:fixed; top:0; bottom:0; left:0; width:100%; max-width:480px; background:var(--navy); border-left:1px solid rgba(255,255,255,.1); transform:translateX(-100%); transition:transform .3s; z-index:41; overflow-y:auto; }
+    .drawer.open { transform:translateX(0); }
+    .drawer-head { display:flex; align-items:center; justify-content:space-between; padding:18px 20px; border-bottom:1px solid rgba(255,255,255,.08); position:sticky; top:0; background:var(--navy); }
+    .drawer-head .oid { font-size:1.1rem; }
+    .drawer-body { padding:20px; }
+    .d-section { margin-bottom:22px; }
+    .d-section h4 { font-size:.8rem; color:var(--gold); font-weight:800; margin-bottom:10px; text-transform:uppercase; letter-spacing:.05em; }
+    .d-row { display:flex; justify-content:space-between; gap:12px; padding:7px 0; border-bottom:1px dashed rgba(255,255,255,.07); font-size:.9rem; }
+    .d-row .k { color:rgba(255,255,255,.6); }
+    .d-row .v { font-weight:600; text-align:left; }
+    .file-item { display:flex; align-items:center; gap:10px; background:var(--navy-light); border:1px solid rgba(255,255,255,.08); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
+    .file-item .fi-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.88rem; }
+    .file-item .fi-act { color:var(--gold); font-size:.82rem; font-weight:700; padding:4px 8px; border:1px solid rgba(201,168,76,.4); border-radius:7px; }
+    .file-item .fi-act:hover { background:rgba(201,168,76,.12); }
+    .contact-btns { display:flex; gap:10px; }
+    .contact-btns a { flex:1; text-align:center; }
+    .status-select { width:100%; border-radius:10px; border:1px solid rgba(255,255,255,.18); background:var(--navy-dark); color:#fff; padding:11px 14px; font-family:inherit; font-size:.95rem; }
+    .hidden { display:none !important; }
+    .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--gold); color:var(--navy-dark); padding:12px 22px; border-radius:10px; font-weight:700; z-index:60; opacity:0; transition:opacity .3s; }
+    .toast.show { opacity:1; }
+
+    /* work manager */
+    .work-row { display:flex; gap:14px; align-items:center; background:var(--navy-dark); border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:12px 14px; flex-wrap:wrap; }
+    .work-thumb { width:96px; height:64px; border-radius:10px; overflow:hidden; flex-shrink:0; background:linear-gradient(135deg,#11283f,#0a1622); display:flex; align-items:center; justify-content:center; color:rgba(205,161,74,.5); font-size:11px; text-align:center; }
+    .work-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+    .work-fields { flex:1; min-width:180px; display:flex; flex-direction:column; gap:8px; }
+    .work-fields input { width:100%; border-radius:9px; border:1px solid rgba(255,255,255,.15); background:rgba(10,14,23,.6); padding:9px 12px; color:#fff; font-family:inherit; font-size:.9rem; outline:none; }
+    .work-fields input:focus { border-color:var(--gold); }
+    .work-fields .wf-tag { font-size:.82rem; color:rgba(255,255,255,.7); }
+    .work-actions { display:flex; flex-direction:column; gap:8px; flex-shrink:0; }
+    .work-actions .wbtn { font-size:.8rem; font-weight:700; padding:7px 12px; border-radius:8px; border:1px solid rgba(201,168,76,.4); color:var(--gold); white-space:nowrap; }
+    .work-actions .wbtn:hover { background:rgba(201,168,76,.12); }
+    .work-actions .wdel { border-color:rgba(248,113,113,.35); color:#f87171; }
+    .work-actions .wdel:hover { background:rgba(248,113,113,.12); }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="loginView" class="login-wrap">
+    <div class="login-card">
+      <img src="logo.png" alt="إتقان" />
+      <h2>لوحة التحكم</h2>
+      <p>الدخول مخصّص للمشرفين المصرّح لهم فقط</p>
+      <input id="emailInput" type="email" dir="ltr" placeholder="البريد الإلكتروني" autocomplete="username" style="text-align:center" />
+      <input id="keyInput" type="password" placeholder="كلمة المرور" autocomplete="current-password" />
+      <div class="login-err" id="loginErr"></div>
+      <button class="btn btn-gold" style="width:100%" id="loginBtn">دخول</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashView" class="hidden">
+    <header>
+      <div class="shell bar">
+        <div class="brand">
+          <img src="logo.png" alt="إتقان" />
+          <h1>إتقان<small>لوحة التحكم</small></h1>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <a class="btn btn-gold" href="/">↗ عرض الموقع</a>
+          <button class="btn btn-ghost" id="refreshBtn">↻ تحديث</button>
+          <button class="btn btn-ghost" id="logoutBtn">خروج</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="shell">
+      <div class="stats" id="stats"></div>
+      <div class="panel">
+        <div class="panel-head"><h3>الطلبات</h3><span class="muted" id="ordersCount"></span></div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr><th>رقم الطلب</th><th>التاريخ</th><th>الخدمة</th><th>العميل</th><th>ملفات</th><th>الحالة</th></tr>
+            </thead>
+            <tbody id="ordersBody"></tbody>
+          </table>
+        </div>
+        <div class="empty hidden" id="emptyState">لا توجد طلبات بعد.</div>
+      </div>
+
+      <!-- WORK / PORTFOLIO MANAGEMENT -->
+      <div class="panel" style="margin-top:22px;">
+        <div class="panel-head">
+          <h3>نماذج الأعمال</h3>
+          <div style="display:flex;gap:10px;">
+            <button class="btn btn-ghost" id="workAddBtn">+ إضافة نموذج</button>
+            <button class="btn btn-gold" id="workSaveBtn">حفظ التعديلات</button>
+          </div>
+        </div>
+        <div id="workList" style="padding:18px 20px;display:grid;grid-template-columns:1fr;gap:14px;"></div>
+      </div>
+
+      <!-- SETTINGS: WhatsApp -->
+      <div class="panel" style="margin-top:22px;">
+        <div class="panel-head"><h3>إعدادات التواصل</h3></div>
+        <div style="padding:18px 20px;">
+          <label style="display:block;color:var(--muted);font-size:.85rem;margin-bottom:8px;">رقم واتساب العمل (يُستخدم في أزرار الواتساب بالموقع)</label>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <input id="waInput" type="tel" dir="ltr" placeholder="مثال: 96893890037" style="flex:1;min-width:200px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:11px 14px;color:#fff;font-family:inherit;font-size:1rem;outline:none;text-align:left;" />
+            <button class="btn btn-gold" id="waSaveBtn">حفظ الرقم</button>
+          </div>
+          <p class="muted" style="font-size:.8rem;margin-top:10px;">يُحفظ بالأرقام فقط (يُزال + والمسافات تلقائيًا). صيغة دولية بدون +، مثل: 96893890037</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- DRAWER -->
+  <div class="overlay" id="overlay"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-head">
+      <span class="oid" id="dOid"></span>
+      <button class="btn btn-ghost" id="closeDrawer">✕</button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function(){
+      var KEY_STORE = 'itqan_admin_key';
+      function el(id){ return document.getElementById(id); }
+      function getKey(){ return localStorage.getItem(KEY_STORE) || ''; }
+
+      var STATUS_LABEL = { new:'جديد', in_progress:'قيد العمل', ready:'جاهز', delivered:'مُسلّم' };
+      var orders = [];
+
+      function api(path, opts){
+        opts = opts || {};
+        opts.headers = Object.assign({ 'x-admin-key': getKey() }, opts.headers || {});
+        return fetch(path, opts);
+      }
+      function toast(msg){ var t=el('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); }, 1800); }
+      function fmtDate(iso){ try { var d=new Date(iso); return d.toLocaleDateString('ar',{year:'numeric',month:'short',day:'numeric'}) + ' · ' + d.toLocaleTimeString('ar',{hour:'2-digit',minute:'2-digit'}); } catch(e){ return iso; } }
+      function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+      // ---- login ----
+      function showDash(){ el('loginView').classList.add('hidden'); el('dashView').classList.remove('hidden'); loadOrders(); loadWork(); loadSettings(); }
+      function doLogin(){
+        var email = (el('emailInput').value || '').trim().toLowerCase();
+        var key = el('keyInput').value;
+        el('loginErr').textContent = '';
+        fetch('/api/admin/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email:email, key:key}) })
+          .then(function(r){ return r.json(); })
+          .then(function(j){
+            if(j.ok){
+              localStorage.setItem(KEY_STORE, key);
+              localStorage.setItem('itqan_owner_email', email); // reveals the dashboard link on the site
+              showDash();
+            } else if(j.emailAllowed === false){
+              el('loginErr').textContent = 'هذا البريد غير مصرّح له بالدخول.';
+            } else {
+              el('loginErr').textContent = 'البريد أو كلمة المرور غير صحيحة.';
+            }
+          })
+          .catch(function(){ el('loginErr').textContent = 'تعذّر الاتصال بالخادم.'; });
+      }
+      el('loginBtn').addEventListener('click', doLogin);
+      el('emailInput').addEventListener('keydown', function(e){ if(e.key==='Enter') el('keyInput').focus(); });
+      el('keyInput').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+      el('logoutBtn').addEventListener('click', function(){ localStorage.removeItem(KEY_STORE); location.reload(); });
+      el('refreshBtn').addEventListener('click', loadOrders);
+
+      // ---- orders ----
+      function loadOrders(){
+        api('/api/orders').then(function(r){
+          if(r.status===401){ localStorage.removeItem(KEY_STORE); location.reload(); return null; }
+          return r.json();
+        }).then(function(j){
+          if(!j) return;
+          orders = j.orders || [];
+          renderStats(); renderTable();
+        }).catch(function(){ toast('تعذّر تحميل الطلبات'); });
+      }
+
+      function renderStats(){
+        var by = { new:0, in_progress:0, ready:0, delivered:0 };
+        orders.forEach(function(o){ by[o.status] = (by[o.status]||0)+1; });
+        el('stats').innerHTML =
+          stat(orders.length,'إجمالي الطلبات') +
+          stat(by.new,'جديدة') +
+          stat(by.in_progress,'قيد العمل') +
+          stat(by.ready + by.delivered,'جاهزة/مُسلّمة');
+        el('ordersCount').textContent = orders.length + ' طلب';
+      }
+      function stat(n,l){ return '<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'; }
+
+      function renderTable(){
+        var body = el('ordersBody');
+        el('emptyState').classList.toggle('hidden', orders.length>0);
+        body.innerHTML = orders.map(function(o){
+          return '<tr data-id="'+o.id+'">'+
+            '<td class="oid">#'+esc(o.id)+'</td>'+
+            '<td class="muted">'+fmtDate(o.createdAt)+'</td>'+
+            '<td>'+esc(o.service)+'</td>'+
+            '<td>'+esc(o.customer.name)+'</td>'+
+            '<td>'+o.files.length+'</td>'+
+            '<td><span class="badge s-'+o.status+'">'+STATUS_LABEL[o.status]+'</span></td>'+
+          '</tr>';
+        }).join('');
+        Array.prototype.forEach.call(body.querySelectorAll('tr'), function(tr){
+          tr.addEventListener('click', function(){ openOrder(tr.getAttribute('data-id')); });
+        });
+      }
+
+      // ---- drawer ----
+      function openOrder(id){
+        var o = orders.find(function(x){ return x.id===id; });
+        if(!o) return;
+        el('dOid').textContent = '#' + o.id;
+        var wa = String(o.customer.whatsapp||'').replace(/[^0-9]/g,'');
+        var files = o.files.map(function(f){
+          return '<div class="file-item"><span class="fi-name">'+esc(f.originalName)+'</span>'+
+            '<button class="fi-act" data-act="view" data-name="'+f.storedName+'">عرض</button>'+
+            '<button class="fi-act" data-act="dl" data-name="'+f.storedName+'">تحميل</button></div>';
+        }).join('') || '<p class="muted">لا توجد ملفات.</p>';
+
+        var statusOpts = ['new','in_progress','ready','delivered'].map(function(s){
+          return '<option value="'+s+'"'+(s===o.status?' selected':'')+'>'+STATUS_LABEL[s]+'</option>';
+        }).join('');
+
+        el('drawerBody').innerHTML =
+          '<div class="d-section"><h4>الحالة</h4><select class="status-select" id="statusSel">'+statusOpts+'</select></div>'+
+          '<div class="d-section"><h4>الخدمة</h4>'+
+            row('الخدمة', o.service) + row('المادة', o.subject||'—') +
+            row('الموعد النهائي', o.deadline||'غير محدد') +
+            row('الإضافات', (o.addons&&o.addons.length)? o.addons.join('، ') : 'لا يوجد') +
+            (o.notes? row('ملاحظات', o.notes) : '') +
+            row('تاريخ الطلب', fmtDate(o.createdAt)) +
+          '</div>'+
+          '<div class="d-section"><h4>العميل</h4>'+
+            row('الاسم', o.customer.name) + row('البريد', o.customer.email) + row('الواتساب', o.customer.whatsapp) +
+            '<div class="contact-btns" style="margin-top:12px">'+
+              '<a class="btn btn-gold" target="_blank" href="https://wa.me/'+wa+'">واتساب</a>'+
+              '<a class="btn btn-ghost" href="mailto:'+esc(o.customer.email)+'">بريد</a>'+
+            '</div>'+
+          '</div>'+
+          '<div class="d-section"><h4>الملفات ('+o.files.length+')</h4>'+files+'</div>';
+
+        // status change
+        el('statusSel').addEventListener('change', function(){
+          var ns = this.value;
+          api('/api/order/status', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:o.id, status:ns}) })
+            .then(function(r){ return r.json(); })
+            .then(function(j){ if(j.ok){ o.status=ns; renderStats(); renderTable(); toast('تم تحديث الحالة'); } else { toast('فشل التحديث'); } });
+        });
+
+        // file actions (fetch with auth header -> blob)
+        Array.prototype.forEach.call(el('drawerBody').querySelectorAll('.fi-act'), function(btn){
+          btn.addEventListener('click', function(){
+            var name = btn.getAttribute('data-name');
+            var act = btn.getAttribute('data-act');
+            api('/api/order/file?id='+encodeURIComponent(o.id)+'&name='+encodeURIComponent(name))
+              .then(function(r){ if(!r.ok) throw new Error(); return r.blob(); })
+              .then(function(blob){
+                var url = URL.createObjectURL(blob);
+                if(act==='view'){ window.open(url,'_blank'); }
+                else { var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); }
+                setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+              })
+              .catch(function(){ toast('تعذّر فتح الملف'); });
+          });
+        });
+
+        el('overlay').classList.add('open'); el('drawer').classList.add('open');
+      }
+      function row(k,v){ return '<div class="d-row"><span class="k">'+esc(k)+'</span><span class="v">'+esc(v)+'</span></div>'; }
+      function closeDrawer(){ el('overlay').classList.remove('open'); el('drawer').classList.remove('open'); }
+      el('overlay').addEventListener('click', closeDrawer);
+      el('closeDrawer').addEventListener('click', closeDrawer);
+
+      // ---- work / portfolio manager ----
+      var workItems = [];
+      var workListEl = el('workList');
+
+      function loadWork(){
+        fetch('/api/work').then(function(r){ return r.json(); }).then(function(j){
+          if(j && j.ok){ workItems = j.items || []; renderWork(); }
+        }).catch(function(){ toast('تعذّر تحميل النماذج'); });
+      }
+      function renderWork(){
+        workListEl.innerHTML = workItems.map(function(it){
+          var thumb = it.image
+            ? '<img src="work-images/'+esc(it.image)+'?t='+Date.now()+'" alt="">'
+            : 'بدون صورة';
+          return '<div class="work-row" data-id="'+esc(it.id)+'">'+
+            '<div class="work-thumb">'+thumb+'</div>'+
+            '<div class="work-fields">'+
+              '<input class="wf-title" value="'+esc(it.title)+'" placeholder="عنوان النموذج" />'+
+              '<input class="wf-tag" value="'+esc(it.tag)+'" placeholder="التصنيف (مثل: ملخص دراسي)" />'+
+            '</div>'+
+            '<div class="work-actions">'+
+              '<button type="button" class="wbtn" data-act="img">تغيير الصورة</button>'+
+              '<button type="button" class="wbtn wdel" data-act="del">حذف</button>'+
+            '</div></div>';
+        }).join('') || '<div class="muted" style="padding:10px;">لا توجد نماذج. أضف نموذجاً.</div>';
+        Array.prototype.forEach.call(workListEl.querySelectorAll('.work-row'), function(row){
+          var id = row.getAttribute('data-id');
+          row.querySelector('[data-act="img"]').addEventListener('click', function(){ changeImage(id); });
+          row.querySelector('[data-act="del"]').addEventListener('click', function(){
+            workItems = workItems.filter(function(x){ return x.id !== id; });
+            renderWork();
+          });
+        });
+      }
+      function collectWork(){
+        return Array.prototype.map.call(workListEl.querySelectorAll('.work-row'), function(row){
+          return { id: row.getAttribute('data-id'), title: row.querySelector('.wf-title').value.trim(), tag: row.querySelector('.wf-tag').value.trim() };
+        });
+      }
+      function saveWork(cb){
+        var items = collectWork();
+        api('/api/work/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ items:items }) })
+          .then(function(r){ return r.json(); })
+          .then(function(j){ if(j.ok){ workItems = j.items; renderWork(); toast('تم حفظ النماذج'); if(cb) cb(); } else { toast(j.error||'فشل الحفظ'); } })
+          .catch(function(){ toast('تعذّر الحفظ'); });
+      }
+      function uploadImage(id){
+        var inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = 'image/png,image/jpeg,image/webp';
+        inp.addEventListener('change', function(){
+          var f = inp.files && inp.files[0]; if(!f) return;
+          var fd = new FormData(); fd.append('id', id); fd.append('image', f, f.name);
+          toast('جارٍ رفع الصورة...');
+          api('/api/work/image', { method:'POST', body:fd })
+            .then(function(r){ return r.json(); })
+            .then(function(j){
+              if(j.ok){ var it = workItems.find(function(x){ return x.id===id; }); if(it) it.image = j.image; renderWork(); toast('تم رفع الصورة'); }
+              else { toast(j.error||'فشل رفع الصورة'); }
+            })
+            .catch(function(){ toast('تعذّر رفع الصورة'); });
+        });
+        inp.click();
+      }
+      // persist text edits first (so the item exists server-side), then upload the image
+      function changeImage(id){ saveWork(function(){ uploadImage(id); }); }
+
+      el('workAddBtn').addEventListener('click', function(){
+        workItems.push({ id: 'w' + Math.random().toString(16).slice(2, 8), tag: '', title: 'نموذج جديد', image: null });
+        renderWork();
+      });
+      el('workSaveBtn').addEventListener('click', function(){ saveWork(); });
+
+      // ---- settings (WhatsApp number) ----
+      function loadSettings(){
+        fetch('/api/settings').then(function(r){ return r.json(); }).then(function(j){
+          if(j && j.ok && j.settings){ el('waInput').value = j.settings.whatsapp || ''; }
+        }).catch(function(){});
+      }
+      el('waSaveBtn').addEventListener('click', function(){
+        var num = (el('waInput').value || '').replace(/[^0-9]/g, '');
+        if(num.length < 7){ toast('رقم غير صحيح'); return; }
+        api('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ whatsapp:num }) })
+          .then(function(r){ return r.json(); })
+          .then(function(j){ if(j.ok){ el('waInput').value = j.settings.whatsapp; toast('تم حفظ الرقم'); } else { toast(j.error||'فشل الحفظ'); } })
+          .catch(function(){ toast('تعذّر الحفظ'); });
+      });
+
+      // ---- boot ----
+      if(getKey()){ showDash(); }
+    })();
+  </script>
+</body>
+</html>
