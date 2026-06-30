@@ -2,6 +2,7 @@
 // Prefer IPv4 for all DNS lookups — the host has no outbound IPv6 (SMTP gets ENETUNREACH on ::).
 try { require('dns').setDefaultResultOrder('ipv4first'); } catch (e) {}
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -53,9 +54,70 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.ADMIN_EMAIL) {
     greetingTimeout: 20000,
     socketTimeout: 30000,
   });
-  console.log('✉️  إشعارات البريد مُفعّلة → ' + process.env.ADMIN_EMAIL);
-} else {
-  console.log('ℹ️  إشعارات البريد غير مُفعّلة (تُسجّل في الطرفية فقط). اضبط SMTP_HOST/SMTP_USER/ADMIN_EMAIL لتفعيلها.');
+  console.log('✉️  إشعارات البريد مُفعّلة (SMTP) → ' + process.env.ADMIN_EMAIL);
+}
+
+// Preferred on Railway/cloud: send over HTTPS (port 443) via Brevo's API — SMTP ports
+// (465/587) are blocked outbound on the free plan, so nodemailer times out there.
+// Set BREVO_API_KEY (+ MAIL_FROM, ADMIN_EMAIL). The MAIL_FROM email must be a
+// "verified sender" in your Brevo account.
+const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
+if (BREVO_API_KEY) {
+  console.log('✉️  إشعارات البريد مُفعّلة (Brevo HTTP API) → ' + (process.env.ADMIN_EMAIL || ''));
+} else if (!mailer) {
+  console.log('ℹ️  إشعارات البريد غير مُفعّلة (تُسجّل في الطرفية فقط). اضبط BREVO_API_KEY أو SMTP_* لتفعيلها.');
+}
+
+// Parse "اسم <email@x.com>" or a bare "email@x.com" into { name, email }.
+function parseAddr(s, fallbackName) {
+  s = String(s || '').trim();
+  const m = /^(.*?)<\s*([^>]+?)\s*>$/.exec(s);
+  if (m) return { name: m[1].trim() || fallbackName || '', email: m[2].trim() };
+  return { name: fallbackName || '', email: s };
+}
+
+// Send one notification via Brevo's transactional email API (HTTPS, retry on transient failure).
+function sendViaBrevo(mailOpts, num) {
+  const sender = parseAddr(mailOpts.from, 'إتقان');
+  const to = String(mailOpts.to || '').split(',').map(function (e) { return e.trim(); })
+    .filter(Boolean).map(function (e) { return { email: e }; });
+  const payload = JSON.stringify({
+    sender: sender,
+    to: to,
+    subject: mailOpts.subject,
+    htmlContent: mailOpts.html,
+    textContent: mailOpts.text,
+  });
+  (function send(tries) {
+    const req = https.request({
+      method: 'POST', host: 'api.brevo.com', path: '/v3/smtp/email',
+      headers: {
+        'api-key': BREVO_API_KEY,
+        'content-type': 'application/json',
+        'accept': 'application/json',
+        'content-length': Buffer.byteLength(payload),
+      },
+      timeout: 20000,
+    }, function (resp) {
+      let body = '';
+      resp.on('data', function (c) { body += c; });
+      resp.on('end', function () {
+        if (resp.statusCode >= 200 && resp.statusCode < 300) {
+          console.log(`✅ إشعار ${num} أُرسل (Brevo)`);
+        } else {
+          console.error(`فشل إرسال البريد ${num} (Brevo ${resp.statusCode}، متبقٍ ${tries - 1}):`, body.slice(0, 300));
+          if (tries > 1) setTimeout(function () { send(tries - 1); }, 5000);
+        }
+      });
+    });
+    req.on('timeout', function () { req.destroy(new Error('timeout')); });
+    req.on('error', function (e) {
+      console.error(`فشل إرسال البريد ${num} (Brevo، متبقٍ ${tries - 1}):`, e.message);
+      if (tries > 1) setTimeout(function () { send(tries - 1); }, 5000);
+    });
+    req.write(payload);
+    req.end();
+  })(3);
 }
 
 function notifyNewOrder(order) {
@@ -74,7 +136,7 @@ function notifyNewOrder(order) {
     `الملفات: ${order.files.length}`,
   ];
   console.log('\n📩 ' + lines.join('\n   '));
-  if (!mailer) return;
+  if (!BREVO_API_KEY && !mailer) return;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const row = (k, v) => `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">${k}</td><td style="padding:9px 14px;color:#11283f;font-weight:600;border-bottom:1px solid #eef1f4;">${esc(v)}</td></tr>`;
   const siteUrl = (process.env.SITE_URL || '').replace(/\/+$/, '');
@@ -86,12 +148,14 @@ function notifyNewOrder(order) {
     </table>${btn}
   </div>`;
   const mailOpts = {
-    from: process.env.MAIL_FROM || ('إتقان <' + process.env.SMTP_USER + '>'),
+    from: process.env.MAIL_FROM || ('إتقان <' + (process.env.SMTP_USER || '') + '>'),
     to: process.env.ADMIN_EMAIL,
     subject: `طلب جديد ${num} — ${order.service}`,
     text: lines.join('\n'),
     html: html,
   };
+  // Prefer Brevo over HTTPS (works on Railway, where outbound SMTP is blocked).
+  if (BREVO_API_KEY) { sendViaBrevo(mailOpts, num); return; }
   // Retry a few times — cloud→SMTP connections occasionally time out transiently.
   (function send(tries) {
     mailer.sendMail(mailOpts)
