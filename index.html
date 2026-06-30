@@ -478,6 +478,14 @@
       .reveal { opacity: 1; transform: none; }
     }
   </style>
+  <script>
+    // Always open at the home (hero) — ignore any #section in the entry URL and
+    // don't let the browser restore a previous scroll position.
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+    if (location.hash) {
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+    }
+  </script>
 </head>
 <body>
 
@@ -1259,7 +1267,7 @@
       dropzone.addEventListener('drop', function (e) { if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files); });
 
       // ---- step navigation ----
-      function showStep(n) {
+      function showStep(n, scroll) {
         step = n;
         panels.forEach(function (p) { p.classList.toggle('active', Number(p.getAttribute('data-step')) === n); });
         dots.forEach(function (d) {
@@ -1271,7 +1279,8 @@
         nextBtn.style.display = n === TOTAL_STEPS ? 'none' : 'inline-flex';
         submitBtn.style.display = n === TOTAL_STEPS ? 'inline-flex' : 'none';
         if (n === TOTAL_STEPS) renderSummary();
-        el('request').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Only scroll the form into view on real step navigation — never on initial load.
+        if (scroll) el('request').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
 
       function validateStep(n) {
@@ -1305,8 +1314,8 @@
           row('الإضافات', addonNames.length ? addonNames.join('، ') : 'لا يوجد');
       }
 
-      nextBtn.addEventListener('click', function () { if (validateStep(step)) showStep(Math.min(step + 1, TOTAL_STEPS)); });
-      prevBtn.addEventListener('click', function () { showStep(Math.max(step - 1, 1)); });
+      nextBtn.addEventListener('click', function () { if (validateStep(step)) showStep(Math.min(step + 1, TOTAL_STEPS), true); });
+      prevBtn.addEventListener('click', function () { showStep(Math.max(step - 1, 1), true); });
 
       // ---- submit to backend ----
       form.addEventListener('submit', function (e) {
