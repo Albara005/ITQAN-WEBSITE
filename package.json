@@ -1,30 +1,16 @@
 {
-  "name": "itqan",
-  "private": true,
+  "name": "itqan-website",
   "version": "1.0.0",
-  "type": "module",
+  "description": "إتقان — ACADEMIC STUDIO: منصة الملخصات والخدمات الأكاديمية",
+  "private": true,
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "start": "node serve.cjs"
   },
   "dependencies": {
     "busboy": "^1.6.0",
-    "framer-motion": "^11.3.19",
-    "nodemailer": "^9.0.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.0"
+    "nodemailer": "^9.0.1"
   },
-  "devDependencies": {
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.40",
-    "tailwindcss": "^3.4.7",
-    "typescript": "^5.5.4",
-    "vite": "^5.3.5"
+  "engines": {
+    "node": ">=18"
   }
 }

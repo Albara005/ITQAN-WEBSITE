@@ -21,7 +21,10 @@ function loadAdminConfig() {
 const ADMIN_CONFIG = loadAdminConfig();
 const ADMIN_KEY = process.env.ADMIN_KEY || ADMIN_CONFIG.adminKey || 'change-me';
 // Only these emails may sign into the dashboard (with the password). Empty ⇒ nobody.
-const ALLOWED_ADMIN_EMAILS = (ADMIN_CONFIG.allowedEmails || []).map(function (e) { return String(e).trim().toLowerCase(); });
+// Source priority: ALLOWED_EMAILS env (comma-separated) > admin-config.json.
+const ALLOWED_ADMIN_EMAILS = (
+  (process.env.ALLOWED_EMAILS ? process.env.ALLOWED_EMAILS.split(',') : ADMIN_CONFIG.allowedEmails) || []
+).map(function (e) { return String(e).trim().toLowerCase(); }).filter(Boolean);
 function isAllowedEmail(email) {
   return ALLOWED_ADMIN_EMAILS.indexOf(String(email || '').trim().toLowerCase()) !== -1;
 }

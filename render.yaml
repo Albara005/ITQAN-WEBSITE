@@ -1,0 +1,15 @@
+# Render Blueprint — deploy this app as a free Node web service.
+# In Render: New + → Blueprint → connect this repo. Then set the env var values.
+services:
+  - type: web
+    name: itqan-website
+    runtime: node
+    plan: free
+    region: singapore        # closest free region to the Gulf
+    buildCommand: npm install
+    startCommand: node serve.cjs
+    envVars:
+      - key: ADMIN_KEY        # admin dashboard password
+        sync: false           # set the value in the Render dashboard (kept secret)
+      - key: ALLOWED_EMAILS   # comma-separated emails allowed into /admin
+        sync: false
