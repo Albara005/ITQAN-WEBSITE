@@ -45,6 +45,10 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.ADMIN_EMAIL) {
     port: Number(process.env.SMTP_PORT) || 587,
     secure: Number(process.env.SMTP_PORT) === 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    pool: true,
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+    socketTimeout: 30000,
   });
   console.log('✉️  إشعارات البريد مُفعّلة → ' + process.env.ADMIN_EMAIL);
 } else {
@@ -78,13 +82,22 @@ function notifyNewOrder(order) {
       ${row('الخدمة', order.service)}${row('المادة', order.subject)}${row('الاسم', order.customer.name)}${row('واتساب', order.customer.whatsapp)}${row('البريد', order.customer.email)}${row('الموعد', deadline)}${row('الإضافات', addons)}${row('عدد الملفات', order.files.length)}
     </table>${btn}
   </div>`;
-  mailer.sendMail({
+  const mailOpts = {
     from: process.env.MAIL_FROM || ('إتقان <' + process.env.SMTP_USER + '>'),
     to: process.env.ADMIN_EMAIL,
     subject: `طلب جديد ${num} — ${order.service}`,
     text: lines.join('\n'),
     html: html,
-  }).catch((e) => console.error('فشل إرسال البريد:', e.message));
+  };
+  // Retry a few times — cloud→SMTP connections occasionally time out transiently.
+  (function send(tries) {
+    mailer.sendMail(mailOpts)
+      .then((info) => console.log(`✅ إشعار ${num} أُرسل: ${info.response || 'OK'}`))
+      .catch((e) => {
+        console.error(`فشل إرسال البريد ${num} (متبقٍ ${tries - 1}):`, e.message);
+        if (tries > 1) setTimeout(() => send(tries - 1), 5000);
+      });
+  })(3);
 }
 
 const MIME = {
