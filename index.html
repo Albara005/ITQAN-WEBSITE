@@ -1390,15 +1390,25 @@
 
       /* ===================== OWNER-ONLY DASHBOARD LINK ===================== */
       // The «لوحة التحكم» link is shown only to authorized owners — i.e. visitors
-      // who have signed into /admin with one of the allowed emails (stored locally).
-      var OWNER_EMAILS = ['zumurud889@gmail.com', 'albaraalsubhi62@gmail.com'];
-      try {
-        var ownerEmail = (localStorage.getItem('itqan_owner_email') || '').trim().toLowerCase();
-        if (OWNER_EMAILS.indexOf(ownerEmail) !== -1) {
-          var dl = el('ownerDashLink');
-          if (dl) dl.style.display = '';
-        }
-      } catch (e) {}
+      // who signed into /admin with an allowed email (stored locally). Emails are
+      // matched by SHA-256 hash so the actual addresses are never exposed in source.
+      var OWNER_EMAIL_HASHES = [
+        '37dccffb0be5e6674fb1ce17543ecbd52941b117e348b01395fa168fb5cd9770',
+        'a85a4f9f3dcda36fd5067bd9244a1d2f4d9e5ec8121b84dd402b64584f76ce61'
+      ];
+      (function () {
+        try {
+          var ownerEmail = (localStorage.getItem('itqan_owner_email') || '').trim().toLowerCase();
+          if (!ownerEmail || !window.crypto || !crypto.subtle) return;
+          crypto.subtle.digest('SHA-256', new TextEncoder().encode(ownerEmail)).then(function (buf) {
+            var hex = Array.prototype.map.call(new Uint8Array(buf), function (b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+            if (OWNER_EMAIL_HASHES.indexOf(hex) !== -1) {
+              var dl = el('ownerDashLink');
+              if (dl) dl.style.display = '';
+            }
+          });
+        } catch (e) {}
+      })();
     })();
   </script>
 </body>

@@ -1,0 +1,5 @@
+{
+  "_note": "Copy this file to admin-config.json and fill in your real values. admin-config.json is gitignored.",
+  "adminKey": "change-me-to-a-strong-password",
+  "allowedEmails": ["owner1@example.com", "owner2@example.com"]
+}

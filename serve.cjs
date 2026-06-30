@@ -12,19 +12,16 @@ const ORDERS_DIR = path.join(ROOT, 'orders');
 const ORDERS_DB = path.join(ORDERS_DIR, 'orders.json');
 
 // ---- admin auth ----
-// Priority: env ADMIN_KEY > admin-config.json > built-in default.
-function loadAdminKey() {
-  if (process.env.ADMIN_KEY) return process.env.ADMIN_KEY;
-  try {
-    const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'admin-config.json'), 'utf8'));
-    if (cfg && cfg.adminKey) return cfg.adminKey;
-  } catch { /* fall through */ }
-  return 'itqan2026';
+// Secrets live in admin-config.json (NOT committed). See admin-config.example.json.
+// { "adminKey": "...", "allowedEmails": ["a@x.com", "b@y.com"] }
+function loadAdminConfig() {
+  try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'admin-config.json'), 'utf8')); }
+  catch { return {}; }
 }
-const ADMIN_KEY = loadAdminKey();
-
-// Only these emails may sign into the admin dashboard (with the password).
-const ALLOWED_ADMIN_EMAILS = ['zumurud889@gmail.com', 'albaraalsubhi62@gmail.com'];
+const ADMIN_CONFIG = loadAdminConfig();
+const ADMIN_KEY = process.env.ADMIN_KEY || ADMIN_CONFIG.adminKey || 'change-me';
+// Only these emails may sign into the dashboard (with the password). Empty ⇒ nobody.
+const ALLOWED_ADMIN_EMAILS = (ADMIN_CONFIG.allowedEmails || []).map(function (e) { return String(e).trim().toLowerCase(); });
 function isAllowedEmail(email) {
   return ALLOWED_ADMIN_EMAILS.indexOf(String(email || '').trim().toLowerCase()) !== -1;
 }

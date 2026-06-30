@@ -41,4 +41,8 @@ logo.png        الشعار
 ## ملاحظات
 
 - البيانات الحساسة وبيانات التشغيل **غير مرفوعة**: `admin-config.json`، `orders/`، `settings.json`، `work.json`، `work-images/` (انظر `.gitignore`).
-- الإيميلات المصرّح لها بالدخول للوحة التحكم معرّفة داخل `serve.cjs` (`ALLOWED_ADMIN_EMAILS`) و `index.html` (`OWNER_EMAILS`).
+- **كلمة مرور الإدارة والإيميلات المصرّح لها** توضع في `admin-config.json` (غير مرفوع). انسخ `admin-config.example.json` إليه واملأ القيم:
+  ```json
+  { "adminKey": "كلمة-مرور-قوية", "allowedEmails": ["a@example.com", "b@example.com"] }
+  ```
+- في الموقع العام، يُطابَق إيميل المالك عبر **بصمة SHA-256** (`OWNER_EMAIL_HASHES` في `index.html`) فلا تظهر الإيميلات في الكود. لتغيير المالكين، احسب بصمة الإيميل (sha256 بحروف صغيرة) وضعها هناك.
