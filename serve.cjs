@@ -45,6 +45,7 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.ADMIN_EMAIL) {
     port: Number(process.env.SMTP_PORT) || 587,
     secure: Number(process.env.SMTP_PORT) === 465,
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    family: 4, // force IPv4 — Railway containers have no outbound IPv6 (ENETUNREACH)
     pool: true,
     connectionTimeout: 20000,
     greetingTimeout: 20000,
