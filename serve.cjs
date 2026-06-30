@@ -319,6 +319,25 @@ async function handleStatus(req, res) {
   sendJson(res, 200, { ok: true });
 }
 
+// Admin maintenance: delete ALL orders + their files and reset the counter to 1001.
+// Requires the admin key AND an explicit confirm flag to avoid accidental wipes.
+async function handleClearOrders(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const body = await readBody(req);
+  if (body.confirm !== 'DELETE-ALL') return sendJson(res, 400, { ok: false, error: 'تأكيد مفقود.' });
+  const before = readOrders().length;
+  try {
+    for (const e of fs.readdirSync(ORDERS_DIR, { withFileTypes: true })) {
+      if (e.isDirectory() && /^\d+$/.test(e.name)) {
+        fs.rmSync(path.join(ORDERS_DIR, e.name), { recursive: true, force: true });
+      }
+    }
+  } catch { /* dir may not exist yet */ }
+  writeOrders([]);
+  try { fs.writeFileSync(COUNTER_DB, JSON.stringify({ last: 1000 }), 'utf8'); } catch {}
+  sendJson(res, 200, { ok: true, deleted: before });
+}
+
 function handleFile(req, res, query) {
   if (!isAuthed(req)) { res.writeHead(401); return res.end('Unauthorized'); }
   const id = query.get('id') || '';
@@ -458,6 +477,7 @@ http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && urlPath === '/api/orders') return handleListOrders(req, res);
   if (req.method === 'POST' && urlPath === '/api/order/status') return handleStatus(req, res);
+  if (req.method === 'POST' && urlPath === '/api/orders/clear') return handleClearOrders(req, res);
   if (req.method === 'GET' && urlPath === '/api/order/file') return handleFile(req, res, parsed.searchParams);
   if (req.method === 'GET' && urlPath === '/api/work') return handleWorkList(res);
   if (req.method === 'POST' && urlPath === '/api/work/save') return handleWorkSave(req, res);
