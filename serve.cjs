@@ -52,21 +52,38 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.ADMIN_EMAIL) {
 }
 
 function notifyNewOrder(order) {
+  const num = '#' + order.id;
+  const addons = (order.addons && order.addons.join('، ')) || 'لا يوجد';
+  const deadline = order.deadline || 'غير محدد';
   const lines = [
-    `طلب جديد: ${order.id}`,
+    `طلب جديد ${num}`,
     `الخدمة: ${order.service}`,
-    `العميل: ${order.customer.name} | ${order.customer.whatsapp} | ${order.customer.email}`,
-    `المادة: ${order.subject} | الموعد: ${order.deadline || 'غير محدد'}`,
-    `الإضافات: ${order.addons.join('، ') || 'لا يوجد'}`,
+    `الاسم: ${order.customer.name}`,
+    `واتساب: ${order.customer.whatsapp}`,
+    `البريد: ${order.customer.email}`,
+    `المادة: ${order.subject}`,
+    `الموعد: ${deadline}`,
+    `الإضافات: ${addons}`,
     `الملفات: ${order.files.length}`,
   ];
   console.log('\n📩 ' + lines.join('\n   '));
   if (!mailer) return;
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  const row = (k, v) => `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">${k}</td><td style="padding:9px 14px;color:#11283f;font-weight:600;border-bottom:1px solid #eef1f4;">${esc(v)}</td></tr>`;
+  const siteUrl = (process.env.SITE_URL || '').replace(/\/+$/, '');
+  const btn = siteUrl ? `<div style="padding:18px 20px;"><a href="${siteUrl}/admin" style="display:inline-block;background:linear-gradient(135deg,#e8cd82,#a9802e);color:#1a1206;text-decoration:none;padding:11px 26px;border-radius:9px;font-weight:700;">فتح لوحة التحكم</a></div>` : '';
+  const html = `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e7eaee;border-radius:14px;overflow:hidden;">
+    <div style="background:#0c1a2b;color:#e8cd82;padding:18px 22px;font-size:18px;font-weight:700;">إتقان — طلب جديد ${num}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;background:#fff;">
+      ${row('الخدمة', order.service)}${row('المادة', order.subject)}${row('الاسم', order.customer.name)}${row('واتساب', order.customer.whatsapp)}${row('البريد', order.customer.email)}${row('الموعد', deadline)}${row('الإضافات', addons)}${row('عدد الملفات', order.files.length)}
+    </table>${btn}
+  </div>`;
   mailer.sendMail({
-    from: process.env.MAIL_FROM || process.env.SMTP_USER,
+    from: process.env.MAIL_FROM || ('إتقان <' + process.env.SMTP_USER + '>'),
     to: process.env.ADMIN_EMAIL,
-    subject: `طلب جديد ${order.id} — ${order.service}`,
+    subject: `طلب جديد ${num} — ${order.service}`,
     text: lines.join('\n'),
+    html: html,
   }).catch((e) => console.error('فشل إرسال البريد:', e.message));
 }
 
