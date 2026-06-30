@@ -30,6 +30,9 @@ const ALLOWED_ADMIN_EMAILS = (
   (process.env.ALLOWED_EMAILS ? process.env.ALLOWED_EMAILS.split(',') : ADMIN_CONFIG.allowedEmails) || []
 ).map(function (e) { return String(e).trim().toLowerCase(); }).filter(Boolean);
 function isAllowedEmail(email) {
+  // No allowlist configured ⇒ the password alone gates access (any email is accepted).
+  // Set ALLOWED_EMAILS (or admin-config.json) to restrict login to specific addresses.
+  if (ALLOWED_ADMIN_EMAILS.length === 0) return true;
   return ALLOWED_ADMIN_EMAILS.indexOf(String(email || '').trim().toLowerCase()) !== -1;
 }
 
