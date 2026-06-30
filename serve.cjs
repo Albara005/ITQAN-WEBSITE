@@ -8,7 +8,11 @@ const nodemailer = require('nodemailer');
 
 const ROOT = __dirname;
 const PORT = process.env.PORT || 8000;
-const ORDERS_DIR = path.join(ROOT, 'orders');
+// Persistent data lives under DATA_DIR (set it to a mounted volume in production,
+// e.g. Railway volume at /data). Defaults to the project folder for local runs.
+const DATA_DIR = process.env.DATA_DIR || ROOT;
+fs.mkdirSync(DATA_DIR, { recursive: true });
+const ORDERS_DIR = path.join(DATA_DIR, 'orders');
 const ORDERS_DB = path.join(ORDERS_DIR, 'orders.json');
 
 // ---- admin auth ----
@@ -96,8 +100,8 @@ function nextOrderNumber() {
 }
 
 // ---- portfolio / work samples (manageable from the dashboard) ----
-const WORK_DB = path.join(ROOT, 'work.json');
-const WORK_IMG_DIR = path.join(ROOT, 'work-images');
+const WORK_DB = path.join(DATA_DIR, 'work.json');
+const WORK_IMG_DIR = path.join(DATA_DIR, 'work-images');
 const IMAGE_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 const WORK_DEFAULTS = [
   { id: 'w1', tag: 'ملخص دراسي', title: 'أحياء — الفصل الثالث', image: null },
@@ -111,7 +115,7 @@ function readWork() { try { return JSON.parse(fs.readFileSync(WORK_DB, 'utf8'));
 function writeWork(list) { fs.writeFileSync(WORK_DB, JSON.stringify(list, null, 2), 'utf8'); }
 
 // ---- site settings (editable from the dashboard) ----
-const SETTINGS_DB = path.join(ROOT, 'settings.json');
+const SETTINGS_DB = path.join(DATA_DIR, 'settings.json');
 const SETTINGS_DEFAULTS = { whatsapp: '96893890037' };
 if (!fs.existsSync(SETTINGS_DB)) fs.writeFileSync(SETTINGS_DB, JSON.stringify(SETTINGS_DEFAULTS, null, 2), 'utf8');
 function readSettings() { try { return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(fs.readFileSync(SETTINGS_DB, 'utf8'))); } catch { return Object.assign({}, SETTINGS_DEFAULTS); } }
@@ -300,6 +304,16 @@ function handleWorkImage(req, res) {
   req.pipe(bb);
 }
 
+// Serve uploaded portfolio images from DATA_DIR (which may be a mounted volume).
+function handleWorkImageFile(res, urlPath) {
+  const name = path.basename(urlPath);
+  if (!/^[a-f0-9]+\.(png|jpe?g|webp)$/i.test(name)) { res.writeHead(404); return res.end('Not found'); }
+  const fp = path.join(WORK_IMG_DIR, name);
+  if (!fp.startsWith(WORK_IMG_DIR) || !fs.existsSync(fp)) { res.writeHead(404); return res.end('Not found'); }
+  res.writeHead(200, { 'Content-Type': MIME[path.extname(fp).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'public, max-age=300' });
+  fs.createReadStream(fp).pipe(res);
+}
+
 // ---------- static ----------
 // Files/folders that must NEVER be served (secrets, VCS, local config, runtime data).
 const STATIC_DENY = new Set(['admin-config.json', 'admin-config.example.json', 'work.json', 'settings.json', 'package.json', 'package-lock.json', 'serve.cjs']);
@@ -348,6 +362,7 @@ http.createServer(async (req, res) => {
   if (req.method === 'GET' && urlPath === '/api/work') return handleWorkList(res);
   if (req.method === 'POST' && urlPath === '/api/work/save') return handleWorkSave(req, res);
   if (req.method === 'POST' && urlPath === '/api/work/image') return handleWorkImage(req, res);
+  if (req.method === 'GET' && urlPath.startsWith('/work-images/')) return handleWorkImageFile(res, urlPath);
   if (req.method === 'GET' && urlPath === '/api/settings') return sendJson(res, 200, { ok: true, settings: readSettings() });
   if (req.method === 'POST' && urlPath === '/api/settings') {
     if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
