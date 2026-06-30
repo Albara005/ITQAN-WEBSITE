@@ -1,4 +1,6 @@
 // إتقان — static server + order API (uploads, storage) + admin API + email notify.
+// Prefer IPv4 for all DNS lookups — the host has no outbound IPv6 (SMTP gets ENETUNREACH on ::).
+try { require('dns').setDefaultResultOrder('ipv4first'); } catch (e) {}
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
