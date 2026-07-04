@@ -187,6 +187,26 @@ function notifyCustomerStatus(order) {
   deliverMail({ from: MAIL_FROM, to: email, subject: `تحديث طلبك #${order.id} — ${label}`, text: `حالة طلبك #${order.id}: ${label}. ${SITE_URL}/?track=${order.id}`, html }, 'حالة #' + order.id);
 }
 
+// Email the customer their finished files (secure per-order download links).
+function notifyCustomerDelivery(order) {
+  const email = order.customer && order.customer.email;
+  if (!email) return;
+  const links = (order.deliverables || []).map((d) => {
+    const url = `${SITE_URL}/api/deliverable?id=${order.id}&t=${order.deliverToken}&name=${d.storedName}`;
+    return `<div style="margin:9px 0;"><a href="${url}" style="display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:12px 24px;border-radius:9px;font-weight:700;font-size:15px;">⬇ تحميل: ${escHtml(d.originalName)}</a></div>`;
+  }).join('');
+  const html = `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e7eaee;border-radius:14px;overflow:hidden;">
+    <div style="background:#0c1a2b;color:#e8cd82;padding:20px 22px;font-size:19px;font-weight:700;">إتقان — طلبك #${order.id} جاهز 🎉</div>
+    <div style="padding:22px;color:#11283f;">
+      <p style="font-size:15px;line-height:1.9;margin:0 0 14px;">مرحبًا ${escHtml(order.customer.name || '')}، تم إنجاز طلبك «${escHtml(order.service)}» بنجاح. حمّل ملفاتك من الأزرار التالية:</p>
+      ${links || '<p>—</p>'}
+      <p style="font-size:12.5px;color:#7a8aa0;margin-top:16px;">هذه الروابط خاصة بك، فضلًا لا تشاركها. لأي استفسار نحن في خدمتك.</p>
+    </div>
+  </div>`;
+  const text = `طلبك #${order.id} جاهز. حمّل ملفاتك:\n` + (order.deliverables || []).map((d) => `${SITE_URL}/api/deliverable?id=${order.id}&t=${order.deliverToken}&name=${d.storedName}`).join('\n');
+  deliverMail({ from: MAIL_FROM, to: email, subject: `طلبك #${order.id} جاهز — إتقان`, text, html }, 'تسليم #' + order.id);
+}
+
 function notifyNewOrder(order) {
   const num = '#' + order.id;
   const addons = (order.addons && order.addons.join('، ')) || 'لا يوجد';
@@ -410,6 +430,103 @@ async function handleDeleteOrder(req, res) {
   sendJson(res, 200, { ok: true });
 }
 
+// ---------- deliverables (final files the admin uploads & sends to the customer) ----------
+const DELIVERABLE_EXT = new Set(['.pdf', '.pptx', '.ppt', '.docx', '.doc']);
+const DELIV_NAME_RE = /^[a-f0-9]+\.[a-z0-9]+$/i;
+
+// Admin: upload a finished file to an order.
+function handleUploadDeliverable(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  let bb;
+  try { bb = busboy({ headers: req.headers, defParamCharset: 'utf8', limits: { fileSize: 30 * 1024 * 1024, files: 1 } }); }
+  catch { return sendJson(res, 400, { ok: false, error: 'صيغة الطلب غير صحيحة.' }); }
+  let orderId = ''; let stored = null; let rejected = false; let tooBig = false; const pending = [];
+  bb.on('field', (n, v) => { if (n === 'id') orderId = String(v).replace(/[^0-9]/g, ''); });
+  bb.on('file', (n, stream, info) => {
+    const original = info.filename || 'file';
+    const ext = path.extname(sanitizeName(original)).toLowerCase();
+    if (!DELIVERABLE_EXT.has(ext) || !orderId) { rejected = true; stream.resume(); return; }
+    const dir = path.join(ORDERS_DIR, orderId, 'deliverables');
+    fs.mkdirSync(dir, { recursive: true });
+    const name = crypto.randomBytes(6).toString('hex') + ext;
+    const dest = path.join(dir, name);
+    const ws = fs.createWriteStream(dest);
+    stream.on('limit', () => { tooBig = true; });
+    pending.push(new Promise((r) => ws.on('close', () => {
+      if (tooBig) { fs.unlink(dest, () => {}); return r(); }
+      let size = 0; try { size = fs.statSync(dest).size; } catch {}
+      stored = { storedName: name, originalName: original, size }; r();
+    })));
+    stream.pipe(ws);
+  });
+  bb.on('close', async () => {
+    await Promise.all(pending);
+    if (rejected) return sendJson(res, 415, { ok: false, error: 'صيغة غير مدعومة (PDF/PPTX/PPT/DOCX/DOC).' });
+    if (tooBig || !stored) return sendJson(res, 400, { ok: false, error: 'فشل الرفع أو الملف أكبر من 30 ميجابايت.' });
+    const list = readOrders();
+    const o = list.find((x) => String(x.id) === orderId);
+    if (!o) { try { fs.rmSync(path.join(ORDERS_DIR, orderId, 'deliverables', stored.storedName), { force: true }); } catch {} return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' }); }
+    if (!o.deliverables) o.deliverables = [];
+    o.deliverables.push(stored);
+    writeOrders(list);
+    sendJson(res, 200, { ok: true, deliverables: o.deliverables });
+  });
+  req.pipe(bb);
+}
+
+// Admin: remove a deliverable.
+async function handleDeleteDeliverable(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const body = await readBody(req);
+  const id = String(body.id || '').replace(/[^0-9]/g, '');
+  const name = String(body.name || '');
+  if (!DELIV_NAME_RE.test(name)) return sendJson(res, 400, { ok: false, error: 'اسم غير صحيح.' });
+  const list = readOrders();
+  const o = list.find((x) => String(x.id) === id);
+  if (!o || !o.deliverables) return sendJson(res, 404, { ok: false, error: 'غير موجود.' });
+  o.deliverables = o.deliverables.filter((d) => d.storedName !== name);
+  writeOrders(list);
+  try { fs.rmSync(path.join(ORDERS_DIR, id, 'deliverables', name), { force: true }); } catch {}
+  sendJson(res, 200, { ok: true, deliverables: o.deliverables });
+}
+
+// Download a deliverable — admin (via key) or the customer (via the order's secret token).
+function handleDeliverableDownload(req, res, query) {
+  const id = String(query.get('id') || '').replace(/[^0-9]/g, '');
+  const name = String(query.get('name') || '');
+  const token = String(query.get('t') || '');
+  if (!id || !DELIV_NAME_RE.test(name)) { res.writeHead(400); return res.end('Bad request'); }
+  const o = readOrders().find((x) => String(x.id) === id);
+  if (!o || !o.deliverables) { res.writeHead(404); return res.end('Not found'); }
+  if (!isAuthed(req) && (!o.deliverToken || token !== o.deliverToken)) { res.writeHead(403); return res.end('Forbidden'); }
+  const d = o.deliverables.find((x) => x.storedName === name);
+  if (!d) { res.writeHead(404); return res.end('Not found'); }
+  const fp = path.join(ORDERS_DIR, id, 'deliverables', name);
+  fs.stat(fp, (err, st) => {
+    if (err || !st.isFile()) { res.writeHead(404); return res.end('Not found'); }
+    const type = MIME[path.extname(name).toLowerCase()] || 'application/octet-stream';
+    const fn = encodeURIComponent(d.originalName || ('itqan-' + id + path.extname(name)));
+    res.writeHead(200, { 'Content-Type': type, 'Content-Length': st.size, 'Content-Disposition': "attachment; filename*=UTF-8''" + fn });
+    fs.createReadStream(fp).pipe(res);
+  });
+}
+
+// Admin: mark delivered and email the customer the download links.
+async function handleDeliverOrder(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const body = await readBody(req);
+  const id = String(body.id || '').replace(/[^0-9]/g, '');
+  const list = readOrders();
+  const o = list.find((x) => String(x.id) === id);
+  if (!o) return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' });
+  if (!o.deliverables || !o.deliverables.length) return sendJson(res, 400, { ok: false, error: 'ارفع ملفًا نهائيًا واحدًا على الأقل قبل التسليم.' });
+  if (!o.deliverToken) o.deliverToken = crypto.randomBytes(8).toString('hex');
+  o.status = 'delivered';
+  writeOrders(list);
+  notifyCustomerDelivery(o);
+  sendJson(res, 200, { ok: true });
+}
+
 // Admin maintenance: delete ALL orders + their files and reset the counter to 1001.
 // Requires the admin key AND an explicit confirm flag to avoid accidental wipes.
 async function handleClearOrders(req, res) {
@@ -623,6 +740,10 @@ http.createServer(async (req, res) => {
   if (req.method === 'GET' && urlPath === '/api/orders') return handleListOrders(req, res);
   if (req.method === 'POST' && urlPath === '/api/order/status') return handleStatus(req, res);
   if (req.method === 'POST' && urlPath === '/api/order/delete') return handleDeleteOrder(req, res);
+  if (req.method === 'POST' && urlPath === '/api/order/deliverable') return handleUploadDeliverable(req, res);
+  if (req.method === 'POST' && urlPath === '/api/order/deliverable/delete') return handleDeleteDeliverable(req, res);
+  if (req.method === 'GET' && urlPath === '/api/deliverable') return handleDeliverableDownload(req, res, parsed.searchParams);
+  if (req.method === 'POST' && urlPath === '/api/order/deliver') return handleDeliverOrder(req, res);
   if (req.method === 'POST' && urlPath === '/api/orders/clear') return handleClearOrders(req, res);
   if (req.method === 'GET' && urlPath === '/api/order/track') return handleTrackOrder(res, parsed.searchParams);
   if (req.method === 'GET' && urlPath === '/api/discount/check') return handleDiscountCheck(res, parsed.searchParams);
