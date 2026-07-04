@@ -599,7 +599,10 @@ function serveStatic(req, res, urlPath) {
       res.writeHead(206, { 'Content-Range': `bytes ${start}-${end}/${stat.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1, 'Content-Type': type });
       fs.createReadStream(filePath, { start, end }).pipe(res);
     } else {
-      res.writeHead(200, { 'Content-Length': stat.size, 'Content-Type': type, 'Accept-Ranges': 'bytes' });
+      const headers = { 'Content-Length': stat.size, 'Content-Type': type, 'Accept-Ranges': 'bytes' };
+      // HTML must always be revalidated so dashboard/site updates show without a hard refresh.
+      if (ext === '.html') headers['Cache-Control'] = 'no-cache, must-revalidate';
+      res.writeHead(200, headers);
       fs.createReadStream(filePath).pipe(res);
     }
   });
