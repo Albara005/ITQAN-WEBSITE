@@ -516,6 +516,7 @@
           <li><a href="#work" data-id="work">أعمالنا</a></li>
           <li><a href="#pricing" data-id="pricing">الأسعار</a></li>
           <li><a href="#faq" data-id="faq">الأسئلة</a></li>
+          <li><a href="#track" data-id="track">تتبع الطلب</a></li>
         </ul>
         <div class="nav-right">
           <a href="#request" class="btn btn-fill nav-cta">اطلب الآن</a>
@@ -771,6 +772,80 @@
         </details>
       </div>
     </section>
+
+    <!-- ============ TRACK ORDER ============ -->
+    <section id="track" style="position:relative;padding:clamp(70px,9vw,130px) clamp(16px,5vw,64px);max-width:840px;margin:0 auto;">
+      <div data-reveal style="text-align:center;margin-bottom:44px;">
+        <div style="font-size:13px;letter-spacing:4px;color:var(--gold);margin-bottom:14px;">تتبّع الطلب</div>
+        <h2 style="font-family:'El Messiri',serif;font-size:clamp(30px,4.5vw,52px);font-weight:700;color:var(--cream);">تابع حالة طلبك</h2>
+        <p style="color:var(--muted);font-size:17px;margin-top:14px;">أدخل رقم طلبك (مثال: 1001) لمعرفة حالته الحالية.</p>
+      </div>
+      <div data-reveal style="background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(24px,4vw,40px);">
+        <form id="trackForm" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+          <div style="position:relative;flex:1;min-width:200px;">
+            <span style="position:absolute;right:18px;top:50%;transform:translateY(-50%);color:var(--gold);font-weight:800;pointer-events:none;">#</span>
+            <input id="trackInput" inputmode="numeric" autocomplete="off" placeholder="رقم الطلب" style="width:100%;box-sizing:border-box;padding:15px 36px 15px 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:#fff;font-size:16px;font-family:inherit;" />
+          </div>
+          <button type="submit" style="background:linear-gradient(135deg,var(--goldL),var(--goldD));color:#1a1206;border:none;padding:15px 34px;border-radius:12px;font-weight:800;font-size:16px;cursor:pointer;font-family:inherit;">تتبّع</button>
+        </form>
+        <div id="trackResult" style="margin-top:26px;"></div>
+      </div>
+    </section>
+    <script>
+      (function () {
+        var form = document.getElementById('trackForm');
+        var input = document.getElementById('trackInput');
+        var out = document.getElementById('trackResult');
+        if (!form) return;
+        var STEPS = [
+          { key: 'new', label: 'جديد', desc: 'استلمنا طلبك' },
+          { key: 'in_progress', label: 'قيد العمل', desc: 'جارٍ تجهيز طلبك' },
+          { key: 'ready', label: 'جاهز', desc: 'اكتمل وجاهز للتسليم' },
+          { key: 'delivered', label: 'مُسلّم', desc: 'تم تسليم طلبك' }
+        ];
+        function esc(s) { return String(s == null ? '' : s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+        function fmtDate(iso) { try { return new Date(iso).toLocaleDateString('ar', { year: 'numeric', month: 'long', day: 'numeric' }); } catch (e) { return ''; } }
+        function badge(s) {
+          var m = { 'new': 'background:rgba(96,165,250,.18);color:#93c5fd;', 'in_progress': 'background:rgba(201,168,76,.2);color:var(--goldL);', 'ready': 'background:rgba(52,211,153,.18);color:#6ee7b7;', 'delivered': 'background:rgba(255,255,255,.14);color:#fff;' };
+          return m[s] || m['new'];
+        }
+        function msg(html, color) { out.innerHTML = '<div style="text-align:center;color:' + (color || 'var(--muted)') + ';padding:10px;font-size:16px;">' + html + '</div>'; }
+        function render(order) {
+          var idx = STEPS.map(function (s) { return s.key; }).indexOf(order.status);
+          if (idx < 0) idx = 0;
+          var parts = [];
+          STEPS.forEach(function (s, i) {
+            var done = i <= idx, cur = i === idx;
+            parts.push('<div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex:0 0 auto;width:66px;">'
+              + '<div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;'
+              + (done ? 'background:linear-gradient(135deg,var(--goldL),var(--goldD));color:#1a1206;' : 'background:var(--bg);border:1px solid var(--line);color:var(--muted);')
+              + (cur ? 'box-shadow:0 0 0 5px rgba(205,161,74,.18);' : '') + '">' + (done ? '✓' : (i + 1)) + '</div>'
+              + '<div style="font-size:12.5px;font-weight:700;color:' + (done ? '#fff' : 'var(--muted)') + ';text-align:center;">' + s.label + '</div></div>');
+            if (i < STEPS.length - 1) {
+              parts.push('<div style="flex:1 1 auto;min-width:14px;height:3px;border-radius:2px;margin-top:16px;background:' + (i < idx ? 'linear-gradient(90deg,var(--goldL),var(--gold))' : 'var(--line)') + ';"></div>');
+            }
+          });
+          out.innerHTML =
+            '<div style="text-align:center;margin-bottom:24px;">'
+            + '<div style="font-family:\'El Messiri\',serif;font-size:26px;font-weight:800;color:var(--gold);">طلب #' + esc(order.id) + '</div>'
+            + '<div style="color:var(--muted);font-size:14px;margin-top:6px;">' + esc(order.service || '') + (order.createdAt ? ' · ' + fmtDate(order.createdAt) : '') + '</div>'
+            + '<div style="margin-top:14px;"><span style="display:inline-block;padding:7px 22px;border-radius:999px;font-weight:800;font-size:15px;' + badge(order.status) + '">' + (STEPS[idx] ? STEPS[idx].label : '—') + '</span></div>'
+            + '<div style="color:var(--muted);font-size:13px;margin-top:8px;">' + (STEPS[idx] ? STEPS[idx].desc : '') + '</div>'
+            + '</div>'
+            + '<div style="display:flex;align-items:flex-start;justify-content:space-between;">' + parts.join('') + '</div>';
+        }
+        form.addEventListener('submit', function (e) {
+          e.preventDefault();
+          var id = (input.value || '').replace(/[^0-9]/g, '');
+          if (!id) { msg('الرجاء إدخال رقم الطلب.', '#f0a1a1'); return; }
+          msg('جارٍ البحث…');
+          fetch('/api/order/track?id=' + encodeURIComponent(id))
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+            .then(function (res) { if (res.ok && res.j.ok) { render(res.j.order); } else { msg(esc((res.j && res.j.error) || 'تعذّر جلب الحالة.'), '#f0a1a1'); } })
+            .catch(function () { msg('تعذّر الاتصال. حاول مرة أخرى.', '#f0a1a1'); });
+        });
+      })();
+    </script>
 
     <!-- ============ CONTACT / CTA ============ -->
     <section id="contact" style="position:relative;padding:clamp(50px,7vw,90px) clamp(16px,5vw,64px);">

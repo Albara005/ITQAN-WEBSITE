@@ -338,6 +338,17 @@ async function handleClearOrders(req, res) {
   sendJson(res, 200, { ok: true, deleted: before });
 }
 
+// ---------- GET /api/order/track (public) ----------
+// Look up an order by its number. Returns ONLY non-sensitive fields (status, service,
+// date) — never the customer's name, contacts, notes, or files.
+function handleTrackOrder(res, query) {
+  const id = String(query.get('id') || '').replace(/[^0-9]/g, '');
+  if (!id) return sendJson(res, 400, { ok: false, error: 'أدخل رقم الطلب.' });
+  const o = readOrders().find((x) => String(x.id) === id);
+  if (!o) return sendJson(res, 404, { ok: false, error: 'لا يوجد طلب بهذا الرقم. تأكّد من الرقم وحاول مرة أخرى.' });
+  sendJson(res, 200, { ok: true, order: { id: o.id, status: o.status, service: o.service, createdAt: o.createdAt } });
+}
+
 function handleFile(req, res, query) {
   if (!isAuthed(req)) { res.writeHead(401); return res.end('Unauthorized'); }
   const id = query.get('id') || '';
@@ -478,6 +489,7 @@ http.createServer(async (req, res) => {
   if (req.method === 'GET' && urlPath === '/api/orders') return handleListOrders(req, res);
   if (req.method === 'POST' && urlPath === '/api/order/status') return handleStatus(req, res);
   if (req.method === 'POST' && urlPath === '/api/orders/clear') return handleClearOrders(req, res);
+  if (req.method === 'GET' && urlPath === '/api/order/track') return handleTrackOrder(res, parsed.searchParams);
   if (req.method === 'GET' && urlPath === '/api/order/file') return handleFile(req, res, parsed.searchParams);
   if (req.method === 'GET' && urlPath === '/api/work') return handleWorkList(res);
   if (req.method === 'POST' && urlPath === '/api/work/save') return handleWorkSave(req, res);
