@@ -176,6 +176,30 @@
           <p class="muted" style="font-size:.8rem;margin-top:10px;">يُحفظ بالأرقام فقط (يُزال + والمسافات تلقائيًا). صيغة دولية بدون +، مثل: 96893890037</p>
         </div>
       </div>
+
+      <!-- DISCOUNT CODES -->
+      <div class="panel" style="margin-top:22px;">
+        <div class="panel-head"><h3>أكواد الخصم</h3></div>
+        <div style="padding:18px 20px;">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+            <div style="flex:1;min-width:130px;">
+              <label style="display:block;color:var(--muted);font-size:.8rem;margin-bottom:6px;">الكود</label>
+              <input id="dcCode" type="text" dir="ltr" placeholder="SAVE20" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:11px 14px;color:#fff;font-family:inherit;font-size:1rem;outline:none;text-transform:uppercase;text-align:left;" />
+            </div>
+            <div style="width:110px;">
+              <label style="display:block;color:var(--muted);font-size:.8rem;margin-bottom:6px;">النسبة %</label>
+              <input id="dcPercent" type="number" min="1" max="100" placeholder="20" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:11px 14px;color:#fff;font-family:inherit;font-size:1rem;outline:none;" />
+            </div>
+            <div style="width:150px;">
+              <label style="display:block;color:var(--muted);font-size:.8rem;margin-bottom:6px;">المدة (أيام)</label>
+              <input id="dcDays" type="number" min="0" placeholder="بدون انتهاء" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:11px 14px;color:#fff;font-family:inherit;font-size:1rem;outline:none;" />
+            </div>
+            <button class="btn btn-gold" id="dcAddBtn">إضافة الكود</button>
+          </div>
+          <p class="muted" style="font-size:.8rem;margin-bottom:14px;">المدة بالأيام من تاريخ الإضافة. اتركها فارغة أو 0 لكود بدون تاريخ انتهاء. (إعادة استخدام نفس الكود تُحدّث نسبته ومدته.)</p>
+          <div id="dcList" style="display:grid;gap:10px;"></div>
+        </div>
+      </div>
     </main>
   </div>
 
@@ -210,7 +234,7 @@
       function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
       // ---- login ----
-      function showDash(){ el('loginView').classList.add('hidden'); el('dashView').classList.remove('hidden'); loadOrders(); loadWork(); loadSettings(); }
+      function showDash(){ el('loginView').classList.add('hidden'); el('dashView').classList.remove('hidden'); loadOrders(); loadWork(); loadSettings(); loadDiscounts(); }
       function doLogin(){
         var email = (el('emailInput').value || '').trim().toLowerCase();
         var key = el('keyInput').value;
@@ -303,6 +327,10 @@
             (o.notes? row('ملاحظات', o.notes) : '') +
             row('تاريخ الطلب', fmtDate(o.createdAt)) +
           '</div>'+
+          (o.discount ? '<div class="d-section"><h4>كود الخصم المستخدم</h4>'+
+            '<div class="d-row"><span class="k">الكود</span><span class="v" style="color:var(--gold);font-weight:800;font-family:monospace;letter-spacing:.5px;">'+esc(o.discount.code)+'</span></div>'+
+            '<div class="d-row"><span class="k">النسبة</span><span class="v">'+esc(o.discount.percent)+'%</span></div>'+
+          '</div>' : '')+
           '<div class="d-section"><h4>العميل</h4>'+
             row('الاسم', o.customer.name) + row('البريد', o.customer.email) + row('الواتساب', o.customer.whatsapp) +
             '<div class="contact-btns" style="margin-top:12px">'+
@@ -428,6 +456,50 @@
         api('/api/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ whatsapp:num }) })
           .then(function(r){ return r.json(); })
           .then(function(j){ if(j.ok){ el('waInput').value = j.settings.whatsapp; toast('تم حفظ الرقم'); } else { toast(j.error||'فشل الحفظ'); } })
+          .catch(function(){ toast('تعذّر الحفظ'); });
+      });
+
+      // ---- discount codes ----
+      function loadDiscounts(){
+        api('/api/discounts').then(function(r){ return r.json(); }).then(function(j){
+          if(j && j.ok){ renderDiscounts(j.discounts || []); }
+        }).catch(function(){});
+      }
+      function fmtExpiry(d){
+        if(!d.expiresAt) return 'بدون انتهاء';
+        var s = new Date(d.expiresAt).toLocaleDateString('ar',{year:'numeric',month:'short',day:'numeric'});
+        return d.expired ? ('منتهٍ · '+s) : ('ساري حتى '+s);
+      }
+      function renderDiscounts(list){
+        var box = el('dcList');
+        if(!list.length){ box.innerHTML = '<div class="muted" style="padding:6px;">لا توجد أكواد خصم بعد.</div>'; return; }
+        box.innerHTML = list.map(function(d){
+          return '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(10,14,23,.5);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px 14px;'+(d.expired?'opacity:.5;':'')+'">'+
+            '<span style="font-weight:800;font-family:monospace;font-size:1.05rem;color:var(--gold);letter-spacing:.5px;">'+esc(d.code)+'</span>'+
+            '<span class="badge s-ready">'+d.percent+'%</span>'+
+            '<span class="muted" style="font-size:.82rem;">'+fmtExpiry(d)+'</span>'+
+            '<button class="btn btn-ghost" data-code="'+esc(d.code)+'" style="margin-inline-start:auto;">حذف</button>'+
+          '</div>';
+        }).join('');
+        Array.prototype.forEach.call(box.querySelectorAll('button[data-code]'), function(btn){
+          btn.addEventListener('click', function(){ deleteDiscount(btn.getAttribute('data-code')); });
+        });
+      }
+      function deleteDiscount(code){
+        api('/api/discounts/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code:code }) })
+          .then(function(r){ return r.json(); })
+          .then(function(j){ if(j.ok){ toast('تم حذف الكود'); loadDiscounts(); } else { toast(j.error||'فشل الحذف'); } })
+          .catch(function(){ toast('تعذّر الحذف'); });
+      }
+      el('dcAddBtn').addEventListener('click', function(){
+        var code = (el('dcCode').value||'').trim().toUpperCase();
+        var percent = parseInt(el('dcPercent').value, 10);
+        var days = parseInt(el('dcDays').value, 10); if(isNaN(days)) days = 0;
+        if(!code){ toast('أدخل الكود'); return; }
+        if(!(percent>=1 && percent<=100)){ toast('النسبة يجب أن تكون بين 1 و100'); return; }
+        api('/api/discounts/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code:code, percent:percent, days:days }) })
+          .then(function(r){ return r.json(); })
+          .then(function(j){ if(j.ok){ toast('تم حفظ الكود'); el('dcCode').value=''; el('dcPercent').value=''; el('dcDays').value=''; loadDiscounts(); } else { toast(j.error||'فشل الحفظ'); } })
           .catch(function(){ toast('تعذّر الحفظ'); });
       });
 

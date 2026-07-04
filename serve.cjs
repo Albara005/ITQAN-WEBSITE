@@ -124,6 +124,7 @@ function notifyNewOrder(order) {
   const num = '#' + order.id;
   const addons = (order.addons && order.addons.join('، ')) || 'لا يوجد';
   const deadline = order.deadline || 'غير محدد';
+  const discountText = order.discount ? `${order.discount.code} (${order.discount.percent}%)` : 'لا يوجد';
   const lines = [
     `طلب جديد ${num}`,
     `الخدمة: ${order.service}`,
@@ -133,6 +134,7 @@ function notifyNewOrder(order) {
     `المادة: ${order.subject}`,
     `الموعد: ${deadline}`,
     `الإضافات: ${addons}`,
+    `كود الخصم: ${discountText}`,
     `الملفات: ${order.files.length}`,
   ];
   console.log('\n📩 ' + lines.join('\n   '));
@@ -144,7 +146,7 @@ function notifyNewOrder(order) {
   const html = `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e7eaee;border-radius:14px;overflow:hidden;">
     <div style="background:#0c1a2b;color:#e8cd82;padding:18px 22px;font-size:18px;font-weight:700;">إتقان — طلب جديد ${num}</div>
     <table style="width:100%;border-collapse:collapse;font-size:14px;background:#fff;">
-      ${row('الخدمة', order.service)}${row('المادة', order.subject)}${row('الاسم', order.customer.name)}${row('واتساب', order.customer.whatsapp)}${row('البريد', order.customer.email)}${row('الموعد', deadline)}${row('الإضافات', addons)}${row('عدد الملفات', order.files.length)}
+      ${row('الخدمة', order.service)}${row('المادة', order.subject)}${row('الاسم', order.customer.name)}${row('واتساب', order.customer.whatsapp)}${row('البريد', order.customer.email)}${row('الموعد', deadline)}${row('الإضافات', addons)}${order.discount ? `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">كود الخصم</td><td style="padding:9px 14px;color:#a9802e;font-weight:800;border-bottom:1px solid #eef1f4;">${esc(order.discount.code)} (${order.discount.percent}%)</td></tr>` : ''}${row('عدد الملفات', order.files.length)}
     </table>${btn}
   </div>`;
   const mailOpts = {
@@ -221,6 +223,21 @@ if (!fs.existsSync(SETTINGS_DB)) fs.writeFileSync(SETTINGS_DB, JSON.stringify(SE
 function readSettings() { try { return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(fs.readFileSync(SETTINGS_DB, 'utf8'))); } catch { return Object.assign({}, SETTINGS_DEFAULTS); } }
 function writeSettings(s) { fs.writeFileSync(SETTINGS_DB, JSON.stringify(s, null, 2), 'utf8'); }
 
+// ---- discount codes (managed from the dashboard) ----
+const DISCOUNTS_DB = path.join(DATA_DIR, 'discounts.json');
+if (!fs.existsSync(DISCOUNTS_DB)) fs.writeFileSync(DISCOUNTS_DB, '[]', 'utf8');
+function readDiscounts() { try { return JSON.parse(fs.readFileSync(DISCOUNTS_DB, 'utf8')); } catch { return []; } }
+function writeDiscounts(list) { fs.writeFileSync(DISCOUNTS_DB, JSON.stringify(list, null, 2), 'utf8'); }
+// Return the discount for `code` if it exists and hasn't expired, else null. Case-insensitive.
+function findValidDiscount(code) {
+  const c = String(code || '').trim().toUpperCase();
+  if (!c) return null;
+  const d = readDiscounts().find((x) => String(x.code).toUpperCase() === c);
+  if (!d) return null;
+  if (d.expiresAt && new Date(d.expiresAt).getTime() < Date.now()) return null;
+  return d;
+}
+
 function sanitizeName(name) {
   return (path.basename(name || 'file').replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 120)) || 'file';
 }
@@ -287,10 +304,12 @@ function handleOrder(req, res) {
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email)) return fail(422, 'صيغة البريد الإلكتروني غير صحيحة.');
 
+    const disc = findValidDiscount(fields.discountCode);
     const order = {
       id: orderId, createdAt: new Date().toISOString(), status: 'new',
       service: fields.service || '', subject: fields.subject || '',
       deadline: fields.deadline || '', notes: fields.notes || '', addons,
+      discount: disc ? { code: disc.code, percent: disc.percent } : null,
       customer: { name: fields.name || '', email: fields.email || '', whatsapp: fields.whatsapp || '' },
       files,
     };
@@ -347,6 +366,46 @@ function handleTrackOrder(res, query) {
   const o = readOrders().find((x) => String(x.id) === id);
   if (!o) return sendJson(res, 404, { ok: false, error: 'لا يوجد طلب بهذا الرقم. تأكّد من الرقم وحاول مرة أخرى.' });
   sendJson(res, 200, { ok: true, order: { id: o.id, status: o.status, service: o.service, createdAt: o.createdAt } });
+}
+
+// ---------- discount codes ----------
+// Public: validate a code (used by the order form to show the discount live).
+function handleDiscountCheck(res, query) {
+  const d = findValidDiscount(query.get('code'));
+  if (!d) return sendJson(res, 404, { ok: false, error: 'كود غير صالح أو منتهي الصلاحية.' });
+  sendJson(res, 200, { ok: true, code: d.code, percent: d.percent });
+}
+// Admin: list all codes (with an `expired` flag).
+function handleDiscountsList(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const now = Date.now();
+  const discounts = readDiscounts().map((d) => Object.assign({}, d, { expired: d.expiresAt ? new Date(d.expiresAt).getTime() < now : false }));
+  sendJson(res, 200, { ok: true, discounts });
+}
+// Admin: add or update a code. `days` > 0 sets an expiry; 0/empty means no expiry.
+async function handleDiscountSave(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const body = await readBody(req);
+  const code = String(body.code || '').trim().toUpperCase();
+  const percent = Math.round(Number(body.percent));
+  const days = Number(body.days);
+  if (!/^[A-Z0-9_-]{2,32}$/.test(code)) return sendJson(res, 400, { ok: false, error: 'كود غير صالح (حروف/أرقام إنجليزية فقط، 2-32 خانة).' });
+  if (!(percent >= 1 && percent <= 100)) return sendJson(res, 400, { ok: false, error: 'النسبة يجب أن تكون بين 1 و100.' });
+  const expiresAt = (days && days > 0) ? new Date(Date.now() + days * 86400000).toISOString() : null;
+  const list = readDiscounts();
+  const existing = list.find((x) => String(x.code).toUpperCase() === code);
+  if (existing) { existing.code = code; existing.percent = percent; existing.expiresAt = expiresAt; }
+  else { list.push({ code, percent, expiresAt, createdAt: new Date().toISOString() }); }
+  writeDiscounts(list);
+  sendJson(res, 200, { ok: true });
+}
+// Admin: delete a code.
+async function handleDiscountDelete(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const body = await readBody(req);
+  const code = String(body.code || '').trim().toUpperCase();
+  writeDiscounts(readDiscounts().filter((x) => String(x.code).toUpperCase() !== code));
+  sendJson(res, 200, { ok: true });
 }
 
 function handleFile(req, res, query) {
@@ -446,7 +505,7 @@ function handleWorkImageFile(res, urlPath) {
 
 // ---------- static ----------
 // Files/folders that must NEVER be served (secrets, VCS, local config, runtime data).
-const STATIC_DENY = new Set(['admin-config.json', 'admin-config.example.json', 'work.json', 'settings.json', 'package.json', 'package-lock.json', 'serve.cjs']);
+const STATIC_DENY = new Set(['admin-config.json', 'admin-config.example.json', 'work.json', 'settings.json', 'discounts.json', 'package.json', 'package-lock.json', 'serve.cjs']);
 function serveStatic(req, res, urlPath) {
   if (urlPath === '/') urlPath = '/index.html';
   if (urlPath === '/admin' || urlPath === '/admin/') urlPath = '/admin.html';
@@ -490,6 +549,10 @@ http.createServer(async (req, res) => {
   if (req.method === 'POST' && urlPath === '/api/order/status') return handleStatus(req, res);
   if (req.method === 'POST' && urlPath === '/api/orders/clear') return handleClearOrders(req, res);
   if (req.method === 'GET' && urlPath === '/api/order/track') return handleTrackOrder(res, parsed.searchParams);
+  if (req.method === 'GET' && urlPath === '/api/discount/check') return handleDiscountCheck(res, parsed.searchParams);
+  if (req.method === 'GET' && urlPath === '/api/discounts') return handleDiscountsList(req, res);
+  if (req.method === 'POST' && urlPath === '/api/discounts/save') return handleDiscountSave(req, res);
+  if (req.method === 'POST' && urlPath === '/api/discounts/delete') return handleDiscountDelete(req, res);
   if (req.method === 'GET' && urlPath === '/api/order/file') return handleFile(req, res, parsed.searchParams);
   if (req.method === 'GET' && urlPath === '/api/work') return handleWorkList(res);
   if (req.method === 'POST' && urlPath === '/api/work/save') return handleWorkSave(req, res);

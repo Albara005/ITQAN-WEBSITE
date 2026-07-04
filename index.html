@@ -947,6 +947,14 @@
                   <input id="whatsapp" name="whatsapp" type="tel" dir="ltr" placeholder="+968 9x xxx xxx" />
                   <span class="err" data-for="whatsapp"></span>
                 </div>
+                <div class="field full">
+                  <label for="discountCode">كود الخصم (اختياري)</label>
+                  <div style="display:flex;gap:10px;align-items:stretch;">
+                    <input id="discountCode" name="discountCode" type="text" placeholder="أدخل الكود إن وُجد" style="flex:1;" />
+                    <button type="button" class="btn btn-outline" id="applyDiscount" style="white-space:nowrap;">تطبيق</button>
+                  </div>
+                  <div id="discountMsg" style="font-size:14px;margin-top:8px;color:var(--muted);"></div>
+                </div>
               </div>
               <div class="summary" id="orderSummary"></div>
             </div>
@@ -1264,7 +1272,7 @@
       var dots = el('stepper').querySelectorAll('.step-dot');
       var TOTAL_STEPS = panels.length;
 
-      var state = { service: '', addons: {}, files: [] };
+      var state = { service: '', addons: {}, files: [], discount: null };
       var step = 1;
 
       function fmtSize(b) { return b < 1024*1024 ? Math.round(b/1024)+' KB' : (b/1024/1024).toFixed(1)+' MB'; }
@@ -1386,11 +1394,34 @@
           row('الملفات', state.files.length + ' ملف') +
           row('المادة', form.subject.value.trim() || '—') +
           row('الموعد النهائي', form.deadline.value || 'غير محدد') +
-          row('الإضافات', addonNames.length ? addonNames.join('، ') : 'لا يوجد');
+          row('الإضافات', addonNames.length ? addonNames.join('، ') : 'لا يوجد') +
+          (state.discount ? row('كود الخصم', state.discount.code + ' (' + state.discount.percent + '%)') : '');
       }
 
       nextBtn.addEventListener('click', function () { if (validateStep(step)) showStep(Math.min(step + 1, TOTAL_STEPS), true); });
       prevBtn.addEventListener('click', function () { showStep(Math.max(step - 1, 1), true); });
+
+      // ---- discount code ----
+      var discountInput = el('discountCode');
+      var discountMsg = el('discountMsg');
+      var applyDiscountBtn = el('applyDiscount');
+      function setDiscountMsg(text, color) { if (discountMsg) { discountMsg.textContent = text || ''; discountMsg.style.color = color || 'var(--muted)'; } }
+      if (applyDiscountBtn) {
+        discountInput.addEventListener('input', function () { if (state.discount) { state.discount = null; setDiscountMsg(''); if (step === TOTAL_STEPS) renderSummary(); } });
+        applyDiscountBtn.addEventListener('click', function () {
+          var code = (discountInput.value || '').trim();
+          if (!code) { setDiscountMsg('أدخل كود الخصم أولاً.', '#f0a1a1'); return; }
+          setDiscountMsg('جارٍ التحقق…', 'var(--muted)');
+          fetch('/api/discount/check?code=' + encodeURIComponent(code))
+            .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+            .then(function (res) {
+              if (res.ok && res.j.ok) { state.discount = { code: res.j.code, percent: res.j.percent }; setDiscountMsg('✓ تم تطبيق خصم ' + res.j.percent + '%', '#6ee7b7'); }
+              else { state.discount = null; setDiscountMsg((res.j && res.j.error) || 'كود غير صالح.', '#f0a1a1'); }
+              if (step === TOTAL_STEPS) renderSummary();
+            })
+            .catch(function () { state.discount = null; setDiscountMsg('تعذّر التحقق. حاول مرة أخرى.', '#f0a1a1'); });
+        });
+      }
 
       // ---- submit to backend ----
       form.addEventListener('submit', function (e) {
@@ -1407,6 +1438,7 @@
         fd.append('name', form.name.value.trim());
         fd.append('email', form.email.value.trim());
         fd.append('whatsapp', form.whatsapp.value.trim());
+        fd.append('discountCode', (form.discountCode.value || '').trim());
         Object.keys(state.addons).filter(function (k) { return state.addons[k]; }).forEach(function (a) { fd.append('addons', a); });
         state.files.forEach(function (f) { fd.append('files', f, f.name); });
 
@@ -1441,7 +1473,8 @@
 
       el('resetForm').addEventListener('click', function () {
         form.reset();
-        state = { service: '', addons: {}, files: [] };
+        state = { service: '', addons: {}, files: [], discount: null };
+        setDiscountMsg('');
         serviceGrid.querySelectorAll('.choice').forEach(function (c) { c.classList.remove('selected'); });
         addonList.querySelectorAll('.addon').forEach(function (a) { a.classList.remove('selected'); });
         renderFiles();
