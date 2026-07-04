@@ -29,14 +29,15 @@ node serve.cjs     # يشغّل الموقع + الباك-اند على http://l
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `ADMIN_EMAIL` | لتفعيل إشعار البريد عند كل طلب جديد |
 | `PORT` | منفذ الخادم (الافتراضي 8000) |
 
-## النشر على Render (مجاني)
+## النشر (Railway)
 
-1. ادخل [render.com](https://render.com) وسجّل بحساب GitHub.
-2. **New + → Blueprint** ثم اختر مستودع `ITQAN-WEBSITE` (يُقرأ `render.yaml` تلقائيًا).
-3. اضبط قيم متغيّرات البيئة: `ADMIN_KEY` و `ALLOWED_EMAILS`.
-4. **Deploy** — يعطيك رابطًا عامًا مثل `https://itqan-website.onrender.com`.
+الموقع منشور على **Railway** (خطة Hobby) والدومين الرسمي: **https://www.itqanoman.co**
 
-> **ملاحظة عن الاستمرارية:** الخطة المجانية لا تحفظ الملفات بين عمليات إعادة التشغيل (الطلبات والملفات المرفوعة قد تُفقد عند إعادة النشر). للاستمرار الدائم: قرص دائم (Render مدفوع) أو فعّل إشعار البريد (`SMTP_*`) ليصلك كل طلب على بريدك.
+- البناء عبر Nixpacks: `node serve.cjs`.
+- البيانات الدائمة على **Volume** مربوط عبر `DATA_DIR` (الطلبات، الأعمال، الإعدادات، أكواد الخصم، العدّاد).
+- متغيّرات البيئة: `ADMIN_KEY`، `ALLOWED_EMAILS`، و`BREVO_API_KEY` + `MAIL_FROM` + `ADMIN_EMAIL` لإشعارات البريد.
+
+> إشعارات البريد تُرسَل عبر **Brevo (HTTP API)** لأن Railway يحجب منافذ SMTP الصادرة. الدومين الرسمي مثبّت في الكود (`SITE_URL`) فلا تعتمد الروابط على متغيّر بيئة.
 
 ## البنية
 

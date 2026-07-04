@@ -122,7 +122,9 @@ function sendViaBrevo(mailOpts, num) {
 
 // Shared email helpers (used for both admin and customer notifications).
 const MAIL_FROM = process.env.MAIL_FROM || ('إتقان <' + (process.env.SMTP_USER || 'no-reply@itqanoman.co') + '>');
-const SITE_URL = (process.env.SITE_URL || 'https://www.itqanoman.co').replace(/\/+$/, '');
+// Canonical public URL — hardcoded so email/dashboard links can never point to an old host.
+// (Ignores any SITE_URL env var, which previously pointed at the old Railway domain.)
+const SITE_URL = 'https://www.itqanoman.co';
 const STATUS_AR = { new: 'جديد', in_progress: 'قيد العمل', ready: 'جاهز', delivered: 'مُسلّم' };
 const STATUS_DESC_AR = { new: 'استلمنا طلبك', in_progress: 'جارٍ تجهيز طلبك', ready: 'اكتمل وجاهز للتسليم', delivered: 'تم تسليم طلبك' };
 function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
