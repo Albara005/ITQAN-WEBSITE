@@ -308,6 +308,18 @@
         if(!o) return;
         el('dOid').textContent = '#' + o.id;
         var wa = String(o.customer.whatsapp||'').replace(/[^0-9]/g,'');
+        var siteUrl = 'https://www.itqanoman.co';
+        var waMsg = 'السلام عليكم ' + (o.customer.name||'') + ' 🌟\n\n' +
+          'معك فريق *إتقان* — أكاديمية الخدمات الطلابية.\n' +
+          'نشكر ثقتك فينا، وقد وصلنا طلبك بنجاح ✅\n\n' +
+          '📌 رقم الطلب: *#' + o.id + '*\n' +
+          '📚 الخدمة: ' + o.service + '\n\n' +
+          'سنبدأ العمل على طلبك فور تأكيد التفاصيل وطريقة الدفع.\n' +
+          'وتقدر تتابع حالة طلبك من هنا:\n' +
+          '🔗 ' + siteUrl + '/?track=' + o.id + '\n\n' +
+          'سعداء بخدمتك، وأي استفسار نحن في خدمتك 🤍\n\n' +
+          '🌐 موقعنا: ' + siteUrl;
+        var waHref = 'https://wa.me/' + wa + '?text=' + encodeURIComponent(waMsg);
         var files = o.files.map(function(f){
           return '<div class="file-item"><span class="fi-name">'+esc(f.originalName)+'</span>'+
             '<button class="fi-act" data-act="view" data-name="'+f.storedName+'">عرض</button>'+
@@ -334,7 +346,7 @@
           '<div class="d-section"><h4>العميل</h4>'+
             row('الاسم', o.customer.name) + row('البريد', o.customer.email) + row('الواتساب', o.customer.whatsapp) +
             '<div class="contact-btns" style="margin-top:12px">'+
-              '<a class="btn btn-gold" target="_blank" href="https://wa.me/'+wa+'">واتساب</a>'+
+              '<a class="btn btn-gold" target="_blank" href="'+waHref+'">واتساب</a>'+
               '<a class="btn btn-ghost" href="mailto:'+esc(o.customer.email)+'">بريد</a>'+
             '</div>'+
           '</div>'+
