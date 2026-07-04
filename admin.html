@@ -308,6 +308,8 @@
         if(!o) return;
         el('dOid').textContent = '#' + o.id;
         var wa = String(o.customer.whatsapp||'').replace(/[^0-9]/g,'');
+        if(wa.indexOf('00')===0) wa = wa.slice(2);          // 00968… → 968…
+        if(wa.length===8) wa = '968' + wa;                  // رقم عُمان محلي (8 خانات) بدون رمز الدولة
         var siteUrl = 'https://www.itqanoman.co';
         var waMsg = 'السلام عليكم ' + (o.customer.name||'') + ' 🌟\n\n' +
           'معك فريق *إتقان* — أكاديمية الخدمات الطلابية.\n' +
