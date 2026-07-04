@@ -320,6 +320,15 @@
           'سعداء بخدمتك، وأي استفسار نحن في خدمتك 🤍\n\n' +
           '🌐 موقعنا: ' + siteUrl;
         var waHref = 'https://wa.me/' + wa + '?text=' + encodeURIComponent(waMsg);
+        // Email: open Gmail compose in the browser (mailto: fails on computers without a mail app).
+        var mailSubject = 'بخصوص طلبك #' + o.id + ' — إتقان';
+        var mailBody = 'السلام عليكم ' + (o.customer.name||'') + '،\n\n' +
+          'معك فريق إتقان. بخصوص طلبك رقم #' + o.id + ' (' + o.service + ').\n' +
+          'نودّ تأكيد التفاصيل وطريقة الدفع للبدء في تنفيذ طلبك.\n\n' +
+          'يمكنك متابعة حالة طلبك من هنا:\n' + siteUrl + '/?track=' + o.id + '\n\n' +
+          'مع تحيات فريق إتقان\n' + siteUrl;
+        var mailHref = 'https://mail.google.com/mail/?view=cm&fs=1&to=' + encodeURIComponent(o.customer.email) +
+          '&su=' + encodeURIComponent(mailSubject) + '&body=' + encodeURIComponent(mailBody);
         var files = o.files.map(function(f){
           return '<div class="file-item"><span class="fi-name">'+esc(f.originalName)+'</span>'+
             '<button class="fi-act" data-act="view" data-name="'+f.storedName+'">عرض</button>'+
@@ -347,7 +356,7 @@
             row('الاسم', o.customer.name) + row('البريد', o.customer.email) + row('الواتساب', o.customer.whatsapp) +
             '<div class="contact-btns" style="margin-top:12px">'+
               '<a class="btn btn-gold" target="_blank" href="'+waHref+'">واتساب</a>'+
-              '<a class="btn btn-ghost" href="mailto:'+esc(o.customer.email)+'">بريد</a>'+
+              '<a class="btn btn-ghost" target="_blank" rel="noopener" href="'+mailHref+'">بريد (Gmail)</a>'+
             '</div>'+
           '</div>'+
           '<div class="d-section"><h4>الملفات ('+o.files.length+')</h4>'+files+'</div>'+
