@@ -206,8 +206,7 @@ function notifyNewOrder(order) {
   if (!BREVO_API_KEY && !mailer) return;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
   const row = (k, v) => `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">${k}</td><td style="padding:9px 14px;color:#11283f;font-weight:600;border-bottom:1px solid #eef1f4;">${esc(v)}</td></tr>`;
-  const siteUrl = (process.env.SITE_URL || '').replace(/\/+$/, '');
-  const btn = siteUrl ? `<div style="padding:18px 20px;"><a href="${siteUrl}/admin" style="display:inline-block;background:linear-gradient(135deg,#e8cd82,#a9802e);color:#1a1206;text-decoration:none;padding:11px 26px;border-radius:9px;font-weight:700;">فتح لوحة التحكم</a></div>` : '';
+  const btn = `<div style="padding:18px 20px;"><a href="${SITE_URL}/admin" style="display:inline-block;background:linear-gradient(135deg,#e8cd82,#a9802e);color:#1a1206;text-decoration:none;padding:11px 26px;border-radius:9px;font-weight:700;">فتح لوحة التحكم</a></div>`;
   const html = `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e7eaee;border-radius:14px;overflow:hidden;">
     <div style="background:#0c1a2b;color:#e8cd82;padding:18px 22px;font-size:18px;font-weight:700;">إتقان — طلب جديد ${num}</div>
     <table style="width:100%;border-collapse:collapse;font-size:14px;background:#fff;">
