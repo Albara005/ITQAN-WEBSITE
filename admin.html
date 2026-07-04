@@ -321,7 +321,11 @@
           '🔗 ' + siteUrl + '/?track=' + o.id + '\n\n' +
           'سعداء بخدمتك، وأي استفسار نحن في خدمتك 🤍\n\n' +
           '🌐 موقعنا: ' + siteUrl;
-        var waHref = 'https://wa.me/' + wa + '?text=' + encodeURIComponent(waMsg);
+        // On desktop open WhatsApp Web directly (more reliable than wa.me's intermediate page);
+        // on phones use wa.me so it opens the WhatsApp app.
+        var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        var waHref = (isMobile ? 'https://wa.me/' + wa : 'https://web.whatsapp.com/send?phone=' + wa)
+          + (isMobile ? '?text=' : '&text=') + encodeURIComponent(waMsg);
         // Email: open Gmail compose in the browser (mailto: fails on computers without a mail app).
         var mailSubject = 'بخصوص طلبك #' + o.id + ' — إتقان';
         var mailBody = 'السلام عليكم ' + (o.customer.name||'') + '،\n\n' +
