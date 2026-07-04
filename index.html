@@ -844,6 +844,19 @@
             .then(function (res) { if (res.ok && res.j.ok) { render(res.j.order); } else { msg(esc((res.j && res.j.error) || 'تعذّر جلب الحالة.'), '#f0a1a1'); } })
             .catch(function () { msg('تعذّر الاتصال. حاول مرة أخرى.', '#f0a1a1'); });
         });
+        // Deep-link from the confirmation email: /?track=1001 → auto-fill, search, and scroll here.
+        var pre = new URLSearchParams(window.location.search).get('track');
+        if (pre) {
+          var digits = pre.replace(/[^0-9]/g, '');
+          if (digits) {
+            input.value = digits;
+            setTimeout(function () {
+              form.dispatchEvent(new Event('submit', { cancelable: true }));
+              var sec = document.getElementById('track');
+              if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 350);
+          }
+        }
       })();
     </script>
 

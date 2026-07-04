@@ -120,6 +120,71 @@ function sendViaBrevo(mailOpts, num) {
   })(3);
 }
 
+// Shared email helpers (used for both admin and customer notifications).
+const MAIL_FROM = process.env.MAIL_FROM || ('إتقان <' + (process.env.SMTP_USER || 'no-reply@itqanoman.co') + '>');
+const SITE_URL = (process.env.SITE_URL || 'https://www.itqanoman.co').replace(/\/+$/, '');
+const STATUS_AR = { new: 'جديد', in_progress: 'قيد العمل', ready: 'جاهز', delivered: 'مُسلّم' };
+const STATUS_DESC_AR = { new: 'استلمنا طلبك', in_progress: 'جارٍ تجهيز طلبك', ready: 'اكتمل وجاهز للتسليم', delivered: 'تم تسليم طلبك' };
+function escHtml(s) { return String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+
+// Route an email through Brevo (preferred on Railway) or SMTP, with retry.
+function deliverMail(mailOpts, tag) {
+  if (BREVO_API_KEY) { sendViaBrevo(mailOpts, tag); return; }
+  if (!mailer) return;
+  (function send(tries) {
+    mailer.sendMail(mailOpts)
+      .then((info) => console.log(`✅ ${tag} أُرسل: ${info.response || 'OK'}`))
+      .catch((e) => { console.error(`فشل إرسال البريد ${tag} (متبقٍ ${tries - 1}):`, e.message); if (tries > 1) setTimeout(() => send(tries - 1), 5000); });
+  })(3);
+}
+
+// Customer-facing email body (order confirmation / status update) with a track button.
+function customerEmailHtml(order, opts) {
+  const trackUrl = `${SITE_URL}/?track=${order.id}`;
+  const row = (k, v) => `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">${k}</td><td style="padding:9px 14px;color:#11283f;font-weight:600;border-bottom:1px solid #eef1f4;">${escHtml(v)}</td></tr>`;
+  const addons = (order.addons && order.addons.join('، ')) || 'لا يوجد';
+  return `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e7eaee;border-radius:14px;overflow:hidden;">
+    <div style="background:#0c1a2b;color:#e8cd82;padding:20px 22px;font-size:19px;font-weight:700;">إتقان — ${opts.heading}</div>
+    <div style="padding:20px 22px;color:#11283f;">
+      <p style="font-size:15px;line-height:1.9;margin:0 0 16px;">${opts.intro}</p>
+      ${opts.statusHtml || ''}
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        ${row('رقم الطلب', '#' + order.id)}${row('الخدمة', order.service)}${row('المادة', order.subject || '—')}${row('الموعد', order.deadline || 'غير محدد')}${row('الإضافات', addons)}${order.discount ? row('كود الخصم', order.discount.code + ' (' + order.discount.percent + '%)') : ''}
+      </table>
+      <div style="text-align:center;padding:24px 0 8px;">
+        <a href="${trackUrl}" style="display:inline-block;background:linear-gradient(135deg,#e8cd82,#a9802e);color:#1a1206;text-decoration:none;padding:13px 34px;border-radius:10px;font-weight:800;font-size:15px;">تتبّع حالة طلبك</a>
+      </div>
+      <p style="font-size:12.5px;color:#7a8aa0;text-align:center;margin:6px 0 0;">أو افتح الرابط: ${trackUrl}</p>
+    </div>
+  </div>`;
+}
+
+// Email the customer a confirmation right after they place an order.
+function notifyCustomerOrder(order) {
+  const email = order.customer && order.customer.email;
+  if (!email) return;
+  const html = customerEmailHtml(order, {
+    heading: 'تأكيد طلبك #' + order.id,
+    intro: `مرحبًا ${escHtml(order.customer.name || '')}، شكرًا لطلبك من إتقان! استلمنا طلبك وسنتواصل معك قريبًا عبر واتساب لتأكيد التفاصيل والدفع. يمكنك متابعة حالة طلبك في أي وقت عبر الزر بالأسفل.`,
+  });
+  deliverMail({ from: MAIL_FROM, to: email, subject: `تأكيد طلبك #${order.id} — إتقان`, text: `تم استلام طلبك #${order.id} من إتقان. تابع حالته: ${SITE_URL}/?track=${order.id}`, html }, 'تأكيد #' + order.id);
+}
+
+// Email the customer whenever the admin changes their order status.
+function notifyCustomerStatus(order) {
+  const email = order.customer && order.customer.email;
+  if (!email) return;
+  const label = STATUS_AR[order.status] || order.status;
+  const desc = STATUS_DESC_AR[order.status] || '';
+  const statusHtml = `<div style="text-align:center;margin:0 0 18px;"><span style="display:inline-block;background:rgba(201,168,76,.15);color:#a9802e;border:1px solid #e8cd82;padding:9px 24px;border-radius:999px;font-weight:800;font-size:16px;">${label}</span><div style="color:#7a8aa0;font-size:13px;margin-top:8px;">${desc}</div></div>`;
+  const html = customerEmailHtml(order, {
+    heading: 'تحديث حالة طلبك #' + order.id,
+    intro: `مرحبًا ${escHtml(order.customer.name || '')}، تم تحديث حالة طلبك #${order.id} إلى:`,
+    statusHtml,
+  });
+  deliverMail({ from: MAIL_FROM, to: email, subject: `تحديث طلبك #${order.id} — ${label}`, text: `حالة طلبك #${order.id}: ${label}. ${SITE_URL}/?track=${order.id}`, html }, 'حالة #' + order.id);
+}
+
 function notifyNewOrder(order) {
   const num = '#' + order.id;
   const addons = (order.addons && order.addons.join('، ')) || 'لا يوجد';
@@ -150,23 +215,13 @@ function notifyNewOrder(order) {
     </table>${btn}
   </div>`;
   const mailOpts = {
-    from: process.env.MAIL_FROM || ('إتقان <' + (process.env.SMTP_USER || '') + '>'),
+    from: MAIL_FROM,
     to: process.env.ADMIN_EMAIL,
     subject: `طلب جديد ${num} — ${order.service}`,
     text: lines.join('\n'),
     html: html,
   };
-  // Prefer Brevo over HTTPS (works on Railway, where outbound SMTP is blocked).
-  if (BREVO_API_KEY) { sendViaBrevo(mailOpts, num); return; }
-  // Retry a few times — cloud→SMTP connections occasionally time out transiently.
-  (function send(tries) {
-    mailer.sendMail(mailOpts)
-      .then((info) => console.log(`✅ إشعار ${num} أُرسل: ${info.response || 'OK'}`))
-      .catch((e) => {
-        console.error(`فشل إرسال البريد ${num} (متبقٍ ${tries - 1}):`, e.message);
-        if (tries > 1) setTimeout(() => send(tries - 1), 5000);
-      });
-  })(3);
+  deliverMail(mailOpts, 'إشعار ' + num);
 }
 
 const MIME = {
@@ -315,6 +370,7 @@ function handleOrder(req, res) {
     };
     const list = readOrders(); list.push(order); writeOrders(list);
     notifyNewOrder(order);
+    notifyCustomerOrder(order);
     sendJson(res, 200, { ok: true, orderId, fileCount: files.length });
   });
   req.pipe(bb);
@@ -335,6 +391,7 @@ async function handleStatus(req, res) {
   const o = list.find((x) => x.id === body.id);
   if (!o) return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' });
   o.status = body.status; writeOrders(list);
+  notifyCustomerStatus(o);
   sendJson(res, 200, { ok: true });
 }
 
