@@ -395,6 +395,20 @@ async function handleStatus(req, res) {
   sendJson(res, 200, { ok: true });
 }
 
+// Admin: delete a single order (and its uploaded files).
+async function handleDeleteOrder(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const body = await readBody(req);
+  const id = String(body.id || '').replace(/[^0-9]/g, '');
+  if (!id) return sendJson(res, 400, { ok: false, error: 'رقم طلب غير صحيح.' });
+  const list = readOrders();
+  const idx = list.findIndex((x) => String(x.id) === id);
+  if (idx === -1) return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' });
+  list.splice(idx, 1); writeOrders(list);
+  try { fs.rmSync(path.join(ORDERS_DIR, id), { recursive: true, force: true }); } catch {}
+  sendJson(res, 200, { ok: true });
+}
+
 // Admin maintenance: delete ALL orders + their files and reset the counter to 1001.
 // Requires the admin key AND an explicit confirm flag to avoid accidental wipes.
 async function handleClearOrders(req, res) {
@@ -604,6 +618,7 @@ http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && urlPath === '/api/orders') return handleListOrders(req, res);
   if (req.method === 'POST' && urlPath === '/api/order/status') return handleStatus(req, res);
+  if (req.method === 'POST' && urlPath === '/api/order/delete') return handleDeleteOrder(req, res);
   if (req.method === 'POST' && urlPath === '/api/orders/clear') return handleClearOrders(req, res);
   if (req.method === 'GET' && urlPath === '/api/order/track') return handleTrackOrder(res, parsed.searchParams);
   if (req.method === 'GET' && urlPath === '/api/discount/check') return handleDiscountCheck(res, parsed.searchParams);

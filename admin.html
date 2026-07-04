@@ -338,7 +338,8 @@
               '<a class="btn btn-ghost" href="mailto:'+esc(o.customer.email)+'">بريد</a>'+
             '</div>'+
           '</div>'+
-          '<div class="d-section"><h4>الملفات ('+o.files.length+')</h4>'+files+'</div>';
+          '<div class="d-section"><h4>الملفات ('+o.files.length+')</h4>'+files+'</div>'+
+          '<div class="d-section" style="margin-top:6px;"><button class="btn btn-ghost" id="delOrderBtn" style="width:100%;color:#f0a1a1;border-color:rgba(240,161,161,.35);">حذف الطلب نهائيًا</button></div>';
 
         // status change
         el('statusSel').addEventListener('change', function(){
@@ -363,6 +364,15 @@
               })
               .catch(function(){ toast('تعذّر فتح الملف'); });
           });
+        });
+
+        // delete order
+        el('delOrderBtn').addEventListener('click', function(){
+          if(!confirm('حذف الطلب #'+o.id+' نهائيًا؟ لا يمكن التراجع.')) return;
+          api('/api/order/delete', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id:o.id }) })
+            .then(function(r){ return r.json(); })
+            .then(function(j){ if(j.ok){ orders = orders.filter(function(x){ return x.id!==o.id; }); renderStats(); renderTable(); closeDrawer(); toast('تم حذف الطلب'); } else { toast(j.error||'فشل الحذف'); } })
+            .catch(function(){ toast('تعذّر الحذف'); });
         });
 
         el('overlay').classList.add('open'); el('drawer').classList.add('open');
