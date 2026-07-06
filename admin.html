@@ -671,7 +671,7 @@
         var secs=(sum.sections||[]).map(function(s,i){
           var a=STU_ACC[i%STU_ACC.length];
           var pts=(s.points||[]).map(function(p){return '<li>'+stEsc(p)+'</li>';}).join('');
-          var terms=(s.terms&&s.terms.length)?'<div class="terms"><h4>◆ مصطلحات</h4><ul>'+s.terms.map(function(t){return '<li><b>'+stEsc(t.term)+':</b> '+stEsc(t.def)+'</li>';}).join('')+'</ul></div>':'';
+          var terms=(s.terms&&s.terms.length)?'<div class="terms"><h4>◆ مصطلحات</h4><ul>'+s.terms.map(function(t){ return (typeof t==='string') ? '<li>'+stEsc(t)+'</li>' : '<li><b>'+stEsc(t.term||'')+'</b>'+(t.def?': '+stEsc(t.def):'')+'</li>'; }).join('')+'</ul></div>':'';
           return '<section class="sec" style="--acc:#'+a+';--accbg:#'+a+'14;--accbd:#'+a+'55"><div class="sh"><span class="num">'+(i+1)+'</span><h2>'+stEsc(s.title)+'</h2></div><ul>'+pts+'</ul>'+terms+'</section>';
         }).join('');
         return '<!doctype html><html lang="'+(sum.language||'ar')+'" dir="'+dir+'"><head><meta charset="utf-8">'+
@@ -719,8 +719,8 @@
         api('/api/order/summary/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:studioOrder.id}) })
           .then(function(r){ return r.json(); })
           .then(function(j){ stSetBusy(false); stTyping(false);
-            if(j.ok){ studioData=j.data; studioOrder.summary={data:j.data,chat:[]}; stRenderPreview(); stAddMsg('bot','تم توليد الملخص من ملفات العميل ✅ اطلب أي تعديل تريده.'); }
-            else { stAddMsg('bot','تعذّر التوليد: '+(j.error||'')); }
+            if(j.ok){ studioData=j.data; studioOrder.summary={data:j.data}; stRenderPreview(); stAddMsg('bot', j.reply || 'تم توليد الملخص ✅ اطلب أي تعديل تريده.'); }
+            else { stAddMsg('bot', j.error || 'تعذّر التوليد'); }
           }).catch(function(){ stSetBusy(false); stTyping(false); stAddMsg('bot','تعذّر الاتصال بالخادم.'); });
       }
       function stSendChat(){
@@ -731,8 +731,8 @@
         api('/api/order/summary/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:studioOrder.id, message:msg}) })
           .then(function(r){ return r.json(); })
           .then(function(j){ stSetBusy(false); stTyping(false);
-            if(j.ok){ studioData=j.data; if(studioOrder.summary) studioOrder.summary.data=j.data; stRenderPreview(); stAddMsg('bot','تم تطبيق التعديل ✅'); }
-            else { stAddMsg('bot','تعذّر التعديل: '+(j.error||'')); }
+            if(j.ok){ studioData=j.data; if(studioOrder.summary) studioOrder.summary.data=j.data; stRenderPreview(); stAddMsg('bot', j.reply || 'تم ✅'); }
+            else { stAddMsg('bot', j.error || 'تعذّر التعديل'); }
           }).catch(function(){ stSetBusy(false); stTyping(false); stAddMsg('bot','تعذّر الاتصال.'); });
       }
       function stDownloadPdf(){

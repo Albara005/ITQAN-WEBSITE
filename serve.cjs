@@ -587,16 +587,18 @@ async function extractDocxText(buf) {
   const xml = await f.async('string');
   return (xml.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || []).map((x) => decodeXmlEntities(x.replace(/<[^>]+>/g, ''))).join(' ').slice(0, AI_MAX_TEXT);
 }
-const AI_SYSTEM = `أنت خبير إعداد ملخصات دراسية لمنصة "إتقان". لخّص المادة المرفقة إلى ملخص منظّم واضح ومفيد للمذاكرة.
-- اكتب بنفس لغة المادة الأصلية.
-- أعِد الناتج بصيغة JSON فقط دون أي نص خارجها، بالشكل:
-{"title":"عنوان الملخص","subject":"المادة/الموضوع","language":"ar|en","sections":[{"title":"عنوان القسم","points":["نقطة","نقطة"],"terms":[{"term":"مصطلح","def":"تعريف موجز"}]}]}
-- اجعل النقاط مركّزة ومفيدة، وأبرز المصطلحات المهمة في terms (يمكن ترك terms فارغة).
-- عند طلب تعديل، أعِد نسخة JSON كاملة محدّثة (وليس فرقًا)، وأبقِ ما لم يُطلب تغييره كما هو.`;
+const AI_SYSTEM = `أنت "وكيل إتقان" — مساعد ذكي متخصص في إعداد وتحرير الملخصات الدراسية، تتحدّث مع فريق إتقان بأسلوب طبيعي وودود ومحترف (مثل مساعد حقيقي).
+- تفهم طلبات التعديل والأسئلة وتنفّذها بذكاء مع مراعاة سياق المحادثة السابقة.
+- اكتب الملخص بنفس لغة مادة العميل.
+- ردّك دائمًا بصيغة JSON فقط دون أي نص خارجها، بالشكل التالي:
+{"reply":"ردّ قصير طبيعي بلغة المستخدم يشرح ما فعلتَه أو يجيب على سؤاله","summary":{"title":"عنوان","subject":"المادة","language":"ar|en","sections":[{"title":"القسم","points":["نقطة"],"terms":[{"term":"مصطلح","def":"تعريف"}]}]}}
+- "summary" يحتوي دائمًا الملخص الكامل المحدّث (وليس التغييرات فقط)، مع إبقاء ما لم يُطلب تغييره.
+- إن كان الطلب سؤالاً فقط دون تعديل، أجب في "reply" وأعد "summary" كما هو دون تغيير.
+- اجعل النقاط مركّزة ومفيدة للمذاكرة، و"reply" مختصرًا وودودًا.`;
 
 function callAnthropic(messages, maxTokens) {
   return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({ model: AI_MODEL, max_tokens: maxTokens || 4500, system: AI_SYSTEM, messages });
+    const payload = JSON.stringify({ model: AI_MODEL, max_tokens: maxTokens || 8000, system: AI_SYSTEM, messages });
     const req = https.request({
       method: 'POST', host: 'api.anthropic.com', path: '/v1/messages',
       headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) },
@@ -633,11 +635,15 @@ async function buildFileContent(order) {
   return { blocks, text: text.slice(0, AI_MAX_TEXT), count: blocks.length + (text ? 1 : 0), skipped };
 }
 
-function parseSummaryJson(t) {
+function parseAgent(t) {
   t = String(t).trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
   const s = t.indexOf('{'), e = t.lastIndexOf('}');
-  if (s < 0 || e < 0) throw new Error('لم يُرجع الذكاء JSON صالحًا');
-  return JSON.parse(t.slice(s, e + 1));
+  if (s < 0 || e < 0) throw new Error('لم يُرجع الذكاء ردًّا صالحًا');
+  let obj;
+  try { obj = JSON.parse(t.slice(s, e + 1)); }
+  catch (err) { throw new Error('الرد طويل وانقطع — جرّب طلبًا أبسط أو قسّم التعديل'); }
+  if (!obj.summary || !obj.summary.sections) throw new Error('لم يُرجع الذكاء ملخصًا كاملاً');
+  return { reply: obj.reply || 'تم.', summary: obj.summary };
 }
 
 // Admin: generate a summary draft from the order's uploaded files.
@@ -653,11 +659,11 @@ async function handleSummaryGenerate(req, res) {
   const userContent = [{ type: 'text', text: 'لخّص المادة المرفقة في ملخص دراسي منظّم.' + (fc.text ? ('\n\nنص إضافي من المادة:\n' + fc.text) : '') }].concat(fc.blocks);
   try {
     const resp = await callAnthropic([{ role: 'user', content: userContent }]);
-    const data = parseSummaryJson(resp.content.map((c) => c.text || '').join(''));
-    o.summary = { data, chat: [{ role: 'assistant', text: 'تم توليد الملخص من ملفات العميل ✅' }], updatedAt: new Date().toISOString() };
+    const out = parseAgent(resp.content.map((c) => c.text || '').join(''));
+    o.summary = { data: out.summary, turns: [{ role: 'assistant', text: out.reply }], updatedAt: new Date().toISOString() };
     writeOrders(list);
     console.log(`🤖 ملخص #${o.id} تولّد (${resp.usage.input_tokens}+${resp.usage.output_tokens} توكن)`);
-    sendJson(res, 200, { ok: true, data, usage: resp.usage });
+    sendJson(res, 200, { ok: true, data: out.summary, reply: out.reply, usage: resp.usage });
   } catch (e) { sendJson(res, 500, { ok: false, error: 'تعذّر التوليد: ' + e.message }); }
 }
 
@@ -671,16 +677,20 @@ async function handleSummaryChat(req, res) {
   if (!msg) return sendJson(res, 400, { ok: false, error: 'اكتب التعديل المطلوب.' });
   const list = readOrders(); const o = list.find((x) => String(x.id) === id);
   if (!o || !o.summary) return sendJson(res, 400, { ok: false, error: 'ولّد الملخص أولاً.' });
-  const prompt = 'الملخص الحالي بصيغة JSON:\n' + JSON.stringify(o.summary.data) + '\n\nطبّق هذا التعديل وأعد الملخص كاملاً بنفس صيغة JSON فقط:\n' + msg;
+  const log = (o.summary.turns || []).slice(-8).map((t) => (t.role === 'user' ? 'المستخدم: ' : 'المساعد: ') + t.text).join('\n');
+  const prompt = 'الملخص الحالي (JSON):\n' + JSON.stringify(o.summary.data) +
+    (log ? ('\n\nسجل المحادثة السابق:\n' + log) : '') +
+    '\n\nطلب المستخدم الجديد: ' + msg +
+    '\n\nنفّذ الطلب وأعد JSON بالشكل المطلوب {"reply":...,"summary":...}.';
   try {
     const resp = await callAnthropic([{ role: 'user', content: prompt }]);
-    const data = parseSummaryJson(resp.content.map((c) => c.text || '').join(''));
-    o.summary.data = data;
-    o.summary.chat = (o.summary.chat || []).concat([{ role: 'user', text: msg }, { role: 'assistant', text: 'تم تطبيق التعديل ✅' }]);
+    const out = parseAgent(resp.content.map((c) => c.text || '').join(''));
+    o.summary.data = out.summary;
+    o.summary.turns = (o.summary.turns || []).concat([{ role: 'user', text: msg }, { role: 'assistant', text: out.reply }]);
     o.summary.updatedAt = new Date().toISOString();
     writeOrders(list);
-    sendJson(res, 200, { ok: true, data, usage: resp.usage });
-  } catch (e) { sendJson(res, 500, { ok: false, error: 'تعذّر التعديل: ' + e.message }); }
+    sendJson(res, 200, { ok: true, data: out.summary, reply: out.reply, usage: resp.usage });
+  } catch (e) { sendJson(res, 500, { ok: false, error: e.message }); }
 }
 
 // Admin: fetch the stored summary (to reopen the studio).
