@@ -723,7 +723,10 @@
         if(!studioData){ toast('ولّد الملخص أولاً'); return; }
         var w=window.open('','_blank'); if(!w){ toast('اسمح بالنوافذ المنبثقة'); return; }
         w.document.write(renderSummaryHtml(studioData)); w.document.close();
-        setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} }, 700);
+        var printed=false;
+        function doPrint(){ if(printed) return; printed=true; try{ w.focus(); w.print(); }catch(e){} }
+        try{ w.onload=function(){ setTimeout(doPrint, 500); }; }catch(e){}
+        setTimeout(doPrint, 2600); // fallback: gives the logo image time to load
       }
       el('stClose').addEventListener('click', closeStudio);
       el('stSend').addEventListener('click', stSendChat);
