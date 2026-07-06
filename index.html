@@ -917,7 +917,7 @@
               <ul class="file-list" id="fileList"></ul>
               <span class="err err-block" data-for="files"></span>
               <div id="sizeEstimate" style="margin-top:12px;font-size:15px;color:var(--muted);"></div>
-              <p style="font-size:12.5px;color:var(--muted);margin-top:6px;">💡 التسعير حسب حجم المادة: <b style="color:var(--goldL)">صغير ١</b> · <b style="color:var(--goldL)">متوسط ٢</b> · <b style="color:var(--goldL)">كبير ٣</b> ريال عماني.</p>
+              <p id="priceNote" style="font-size:12.5px;color:var(--muted);margin-top:6px;display:none;">💡 التسعير حسب حجم المادة: <b style="color:var(--goldL)">صغير ١</b> · <b style="color:var(--goldL)">متوسط ٢</b> · <b style="color:var(--goldL)">كبير ٣</b> ريال عماني.</p>
 
               <div class="form-grid" style="margin-top:18px">
                 <div class="field">
@@ -1335,6 +1335,8 @@
 
       // Live order-size estimate (mirrors the server: pages → tier → price).
       var SIZE_P = { small: 1, medium: 2, large: 3 }, SIZE_L = { small: 'صغير', medium: 'متوسط', large: 'كبير' };
+      var SUMMARY_SERVICES = ['ملخص دراسي', 'ملخص + أسئلة مراجعة'];
+      function isSummaryService() { return SUMMARY_SERVICES.indexOf(state.service) > -1; }
       function tierPages(p) { return p <= 15 ? 'small' : p <= 40 ? 'medium' : 'large'; }
       function estFilePages(f, cb) {
         var ext = (f.name.split('.').pop() || '').toLowerCase();
@@ -1352,8 +1354,11 @@
         cb(Math.max(1, Math.round((f.size || 0) / (45 * 1024))));
       }
       function updateSizeEstimate() {
-        var box = el('sizeEstimate'); if (!box) return;
-        if (!state.files.length) { box.innerHTML = ''; return; }
+        var box = el('sizeEstimate'); var note = el('priceNote');
+        var summary = isSummaryService();
+        if (note) note.style.display = summary ? 'block' : 'none';
+        if (!box) return;
+        if (!summary || !state.files.length) { box.innerHTML = ''; return; }
         var total = 0; state.files.forEach(function (f) { total += (f._pages || 1); });
         total = Math.max(1, total); var t = tierPages(total);
         box.innerHTML = '📦 حجم طلبك المتوقّع: <b style="color:var(--goldL)">' + SIZE_L[t] + '</b> · السعر التقديري: <b style="color:var(--goldL)">' + SIZE_P[t] + ' ريال عماني</b>';
@@ -1405,6 +1410,7 @@
         prevBtn.style.visibility = n === 1 ? 'hidden' : 'visible';
         nextBtn.style.display = n === TOTAL_STEPS ? 'none' : 'inline-flex';
         submitBtn.style.display = n === TOTAL_STEPS ? 'inline-flex' : 'none';
+        if (n === 2) updateSizeEstimate();
         if (n === TOTAL_STEPS) renderSummary();
         // Only scroll the form into view on real step navigation — never on initial load.
         if (scroll) el('request').scrollIntoView({ behavior: 'smooth', block: 'start' });

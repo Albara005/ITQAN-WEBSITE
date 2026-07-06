@@ -271,6 +271,8 @@ function readOrders() { try { return JSON.parse(fs.readFileSync(ORDERS_DB, 'utf8
 function writeOrders(list) { fs.writeFileSync(ORDERS_DB, JSON.stringify(list, null, 2), 'utf8'); }
 
 // ---- order size & pricing (estimated from the uploaded material's volume) ----
+// Size-based pricing applies only to summary services (not PowerPoint, etc.).
+const SUMMARY_SERVICES = new Set(['ملخص دراسي', 'ملخص + أسئلة مراجعة']);
 const SIZE_PRICES = { small: 1, medium: 2, large: 3 };       // OMR
 const SIZE_LABELS = { small: 'صغير', medium: 'متوسط', large: 'كبير' };
 const SIZE_SMALL_MAX = 15;   // pages
@@ -409,20 +411,20 @@ function handleOrder(req, res) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email)) return fail(422, 'صيغة البريد الإلكتروني غير صحيحة.');
 
     const disc = findValidDiscount(fields.discountCode);
-    const sz = estimateOrderSize(orderDir, files);
+    const sz = SUMMARY_SERVICES.has(fields.service) ? estimateOrderSize(orderDir, files) : null;
     const order = {
       id: orderId, createdAt: new Date().toISOString(), status: 'new',
       service: fields.service || '', subject: fields.subject || '',
       deadline: fields.deadline || '', notes: fields.notes || '', addons,
       discount: disc ? { code: disc.code, percent: disc.percent } : null,
-      sizeTier: sz.tier, sizePages: sz.pages, price: sz.price,
+      sizeTier: sz ? sz.tier : null, sizePages: sz ? sz.pages : null, price: sz ? sz.price : null,
       customer: { name: fields.name || '', email: fields.email || '', whatsapp: fields.whatsapp || '' },
       files,
     };
     const list = readOrders(); list.push(order); writeOrders(list);
     notifyNewOrder(order);
     notifyCustomerOrder(order);
-    sendJson(res, 200, { ok: true, orderId, fileCount: files.length, sizeTier: sz.tier, sizeLabel: sz.label, price: sz.price, pages: sz.pages });
+    sendJson(res, 200, { ok: true, orderId, fileCount: files.length, sizeTier: sz ? sz.tier : null, sizeLabel: sz ? sz.label : null, price: sz ? sz.price : null, pages: sz ? sz.pages : null });
   });
   req.pipe(bb);
 }
