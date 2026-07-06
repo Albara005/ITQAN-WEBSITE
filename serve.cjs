@@ -556,6 +556,116 @@ async function handleDeliverOrder(req, res) {
   sendJson(res, 200, { ok: true });
 }
 
+// ---------- AI summary generation (Anthropic) ----------
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
+const AI_MODEL = process.env.AI_MODEL || 'claude-sonnet-5';
+const AI_READABLE = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.txt']);
+const AI_MAX_BYTES = 18 * 1024 * 1024; // keep the request under Anthropic's 32MB limit (base64 inflates ~33%)
+const AI_SYSTEM = `أنت خبير إعداد ملخصات دراسية لمنصة "إتقان". لخّص المادة المرفقة إلى ملخص منظّم واضح ومفيد للمذاكرة.
+- اكتب بنفس لغة المادة الأصلية.
+- أعِد الناتج بصيغة JSON فقط دون أي نص خارجها، بالشكل:
+{"title":"عنوان الملخص","subject":"المادة/الموضوع","language":"ar|en","sections":[{"title":"عنوان القسم","points":["نقطة","نقطة"],"terms":[{"term":"مصطلح","def":"تعريف موجز"}]}]}
+- اجعل النقاط مركّزة ومفيدة، وأبرز المصطلحات المهمة في terms (يمكن ترك terms فارغة).
+- عند طلب تعديل، أعِد نسخة JSON كاملة محدّثة (وليس فرقًا)، وأبقِ ما لم يُطلب تغييره كما هو.`;
+
+function callAnthropic(messages, maxTokens) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({ model: AI_MODEL, max_tokens: maxTokens || 4500, system: AI_SYSTEM, messages });
+    const req = https.request({
+      method: 'POST', host: 'api.anthropic.com', path: '/v1/messages',
+      headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) },
+      timeout: 120000,
+    }, (res) => {
+      let d = ''; res.on('data', (c) => d += c); res.on('end', () => {
+        try { const j = JSON.parse(d); if (j.content) resolve(j); else reject(new Error((j.error && j.error.message) || 'خطأ من الذكاء')); }
+        catch (e) { reject(new Error('تعذّر قراءة رد الذكاء')); }
+      });
+    });
+    req.on('timeout', () => req.destroy(new Error('انتهت المهلة')));
+    req.on('error', reject);
+    req.write(payload); req.end();
+  });
+}
+
+// Gather the order's readable files as Claude content blocks (PDF/images) + inline text.
+function buildFileContent(order) {
+  const dir = path.join(ORDERS_DIR, String(order.id));
+  const blocks = []; let text = ''; let bytes = 0; let skipped = 0;
+  for (const f of (order.files || [])) {
+    const ext = path.extname(f.storedName || '').toLowerCase();
+    if (!AI_READABLE.has(ext)) { skipped++; continue; }
+    const fp = path.join(dir, f.storedName);
+    let stat; try { stat = fs.statSync(fp); } catch { continue; }
+    if (bytes + stat.size > AI_MAX_BYTES) { skipped++; continue; }
+    bytes += stat.size;
+    try {
+      if (ext === '.txt') { text += '\n\n' + fs.readFileSync(fp, 'utf8').slice(0, 120000); }
+      else if (ext === '.pdf') { blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fs.readFileSync(fp).toString('base64') } }); }
+      else { const mt = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg'; blocks.push({ type: 'image', source: { type: 'base64', media_type: mt, data: fs.readFileSync(fp).toString('base64') } }); }
+    } catch { /* skip unreadable */ }
+  }
+  return { blocks, text, count: blocks.length + (text ? 1 : 0), skipped };
+}
+
+function parseSummaryJson(t) {
+  t = String(t).trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
+  const s = t.indexOf('{'), e = t.lastIndexOf('}');
+  if (s < 0 || e < 0) throw new Error('لم يُرجع الذكاء JSON صالحًا');
+  return JSON.parse(t.slice(s, e + 1));
+}
+
+// Admin: generate a summary draft from the order's uploaded files.
+async function handleSummaryGenerate(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  if (!ANTHROPIC_API_KEY) return sendJson(res, 400, { ok: false, error: 'مفتاح الذكاء غير مضبوط على الخادم.' });
+  const body = await readBody(req);
+  const id = String(body.id || '').replace(/[^0-9]/g, '');
+  const list = readOrders(); const o = list.find((x) => String(x.id) === id);
+  if (!o) return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' });
+  const fc = buildFileContent(o);
+  if (!fc.count) return sendJson(res, 400, { ok: false, error: 'لا توجد ملفات قابلة للقراءة (PDF/صور/نص). حوّل ملفات Word/PowerPoint إلى PDF، وتأكد أن الحجم أقل من 18MB.' });
+  const userContent = [{ type: 'text', text: 'لخّص المادة المرفقة في ملخص دراسي منظّم.' + (fc.text ? ('\n\nنص إضافي من المادة:\n' + fc.text) : '') }].concat(fc.blocks);
+  try {
+    const resp = await callAnthropic([{ role: 'user', content: userContent }]);
+    const data = parseSummaryJson(resp.content.map((c) => c.text || '').join(''));
+    o.summary = { data, chat: [{ role: 'assistant', text: 'تم توليد الملخص من ملفات العميل ✅' }], updatedAt: new Date().toISOString() };
+    writeOrders(list);
+    console.log(`🤖 ملخص #${o.id} تولّد (${resp.usage.input_tokens}+${resp.usage.output_tokens} توكن)`);
+    sendJson(res, 200, { ok: true, data, usage: resp.usage });
+  } catch (e) { sendJson(res, 500, { ok: false, error: 'تعذّر التوليد: ' + e.message }); }
+}
+
+// Admin: apply a chat edit to the current summary.
+async function handleSummaryChat(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  if (!ANTHROPIC_API_KEY) return sendJson(res, 400, { ok: false, error: 'مفتاح الذكاء غير مضبوط على الخادم.' });
+  const body = await readBody(req);
+  const id = String(body.id || '').replace(/[^0-9]/g, '');
+  const msg = String(body.message || '').slice(0, 2000).trim();
+  if (!msg) return sendJson(res, 400, { ok: false, error: 'اكتب التعديل المطلوب.' });
+  const list = readOrders(); const o = list.find((x) => String(x.id) === id);
+  if (!o || !o.summary) return sendJson(res, 400, { ok: false, error: 'ولّد الملخص أولاً.' });
+  const prompt = 'الملخص الحالي بصيغة JSON:\n' + JSON.stringify(o.summary.data) + '\n\nطبّق هذا التعديل وأعد الملخص كاملاً بنفس صيغة JSON فقط:\n' + msg;
+  try {
+    const resp = await callAnthropic([{ role: 'user', content: prompt }]);
+    const data = parseSummaryJson(resp.content.map((c) => c.text || '').join(''));
+    o.summary.data = data;
+    o.summary.chat = (o.summary.chat || []).concat([{ role: 'user', text: msg }, { role: 'assistant', text: 'تم تطبيق التعديل ✅' }]);
+    o.summary.updatedAt = new Date().toISOString();
+    writeOrders(list);
+    sendJson(res, 200, { ok: true, data, usage: resp.usage });
+  } catch (e) { sendJson(res, 500, { ok: false, error: 'تعذّر التعديل: ' + e.message }); }
+}
+
+// Admin: fetch the stored summary (to reopen the studio).
+function handleSummaryGet(req, res, query) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const id = String(query.get('id') || '').replace(/[^0-9]/g, '');
+  const o = readOrders().find((x) => String(x.id) === id);
+  if (!o) return sendJson(res, 404, { ok: false, error: 'غير موجود.' });
+  sendJson(res, 200, { ok: true, summary: o.summary || null });
+}
+
 // Admin maintenance: delete ALL orders + their files and reset the counter to 1001.
 // Requires the admin key AND an explicit confirm flag to avoid accidental wipes.
 async function handleClearOrders(req, res) {
@@ -773,6 +883,9 @@ http.createServer(async (req, res) => {
   if (req.method === 'POST' && urlPath === '/api/order/deliverable/delete') return handleDeleteDeliverable(req, res);
   if (req.method === 'GET' && urlPath === '/api/deliverable') return handleDeliverableDownload(req, res, parsed.searchParams);
   if (req.method === 'POST' && urlPath === '/api/order/deliver') return handleDeliverOrder(req, res);
+  if (req.method === 'POST' && urlPath === '/api/order/summary/generate') return handleSummaryGenerate(req, res);
+  if (req.method === 'POST' && urlPath === '/api/order/summary/chat') return handleSummaryChat(req, res);
+  if (req.method === 'GET' && urlPath === '/api/order/summary') return handleSummaryGet(req, res, parsed.searchParams);
   if (req.method === 'POST' && urlPath === '/api/orders/clear') return handleClearOrders(req, res);
   if (req.method === 'GET' && urlPath === '/api/order/track') return handleTrackOrder(res, parsed.searchParams);
   if (req.method === 'GET' && urlPath === '/api/discount/check') return handleDiscountCheck(res, parsed.searchParams);
