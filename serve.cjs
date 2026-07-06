@@ -690,7 +690,16 @@ async function handleSummaryGenerate(req, res) {
   if (!o) return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' });
   const fc = await buildFileContent(o);
   if (!fc.count) return sendJson(res, 400, { ok: false, error: 'لا توجد ملفات قابلة للقراءة (PDF/صور/نص/PowerPoint/Word).' });
-  const userContent = [{ type: 'text', text: 'لخّص المادة المرفقة في ملخص دراسي منظّم.' + (fc.text ? ('\n\nنص إضافي من المادة:\n' + fc.text) : '') }].concat(fc.blocks);
+  const brief = [
+    'الخدمة المطلوبة: ' + (o.service || 'ملخص دراسي'),
+    o.subject ? 'المادة/الموضوع: ' + o.subject : '',
+    (o.addons && o.addons.length) ? 'إضافات طلبها العميل: ' + o.addons.join('، ') : '',
+    o.notes ? 'ملاحظات العميل (مهمة): ' + o.notes : '',
+  ].filter(Boolean).join('\n');
+  const instr = 'أنشئ ملخصًا دراسيًا للمادة المرفقة، ونفّذ بالضبط ما طلبه العميل أدناه:\n\n' + brief +
+    '\n\nالتزم بطلب العميل حرفيًا: إن طلب «أسئلة مراجعة» فأضف قسم أسئلة، وإن حدّد فصلاً أو جزءًا معيّنًا فركّز عليه، وإن ذكر أسلوبًا أو تفضيلًا في الملاحظات فطبّقه.' +
+    (fc.text ? ('\n\nنص المادة:\n' + fc.text) : '');
+  const userContent = [{ type: 'text', text: instr }].concat(fc.blocks);
   try {
     const resp = await callAnthropic([{ role: 'user', content: userContent }]);
     const out = parseAgent(resp.content.map((c) => c.text || '').join(''));
