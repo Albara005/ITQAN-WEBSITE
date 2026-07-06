@@ -916,6 +916,8 @@
               </div>
               <ul class="file-list" id="fileList"></ul>
               <span class="err err-block" data-for="files"></span>
+              <div id="sizeEstimate" style="margin-top:12px;font-size:15px;color:var(--muted);"></div>
+              <p style="font-size:12.5px;color:var(--muted);margin-top:6px;">💡 التسعير حسب حجم المادة: <b style="color:var(--goldL)">صغير ١</b> · <b style="color:var(--goldL)">متوسط ٢</b> · <b style="color:var(--goldL)">كبير ٣</b> ريال عماني.</p>
 
               <div class="form-grid" style="margin-top:18px">
                 <div class="field">
@@ -988,6 +990,7 @@
             </div>
             <h3>تم استلام طلبك بنجاح!</h3>
             <p>شكراً لثقتك بإتقان. رقم طلبك: <b id="orderNumber" class="order-number"></b><br/>وصلنا طلبك وسنتواصل معك قريباً عبر الواتساب لتأكيد التفاصيل والدفع — لا حاجة لأي خطوة إضافية منك.</p>
+            <div id="orderSizeLine" style="margin:6px auto 4px;font-size:16px;color:var(--goldL);font-weight:700;"></div>
             <a id="waConfirm" href="#" target="_blank" rel="noopener" class="btn btn-fill" style="margin-top:8px;background:linear-gradient(135deg,#3fd17e,#1f9e58);color:#04210f;display:inline-flex;align-items:center;gap:10px;">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1012 2zm0 18a8 8 0 01-4.1-1.1l-.3-.2-2.9.8.8-2.8-.2-.3A8 8 0 1112 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.2-.5.1a6.5 6.5 0 01-3.2-2.8c-.2-.4.2-.4.6-1.2a.4.4 0 000-.4l-.7-1.7c-.2-.5-.4-.4-.5-.4h-.5a1 1 0 00-.7.3 3 3 0 00-.9 2.2 5.2 5.2 0 001 2.7 11.8 11.8 0 004.6 4c2 .8 2 .5 2.4.5a2.7 2.7 0 001.8-1.3 2.2 2.2 0 00.2-1.3c-.1-.1-.3-.2-.5-.3z"/></svg>
               تواصل معنا عبر واتساب (اختياري)
@@ -1330,6 +1333,32 @@
       var fileInput = el('fileInput');
       var fileList = el('fileList');
 
+      // Live order-size estimate (mirrors the server: pages → tier → price).
+      var SIZE_P = { small: 1, medium: 2, large: 3 }, SIZE_L = { small: 'صغير', medium: 'متوسط', large: 'كبير' };
+      function tierPages(p) { return p <= 15 ? 'small' : p <= 40 ? 'medium' : 'large'; }
+      function estFilePages(f, cb) {
+        var ext = (f.name.split('.').pop() || '').toLowerCase();
+        if (['png', 'jpg', 'jpeg', 'webp'].indexOf(ext) > -1) { cb(1); return; }
+        if (ext === 'pdf') {
+          var r = new FileReader();
+          r.onload = function () { try { var s = new TextDecoder('latin1').decode(r.result); var m = s.match(/\/Type\s*\/Page[^s]/g); cb(m ? m.length : 1); } catch (e) { cb(1); } };
+          r.onerror = function () { cb(1); }; r.readAsArrayBuffer(f); return;
+        }
+        if (ext === 'txt') {
+          var r2 = new FileReader();
+          r2.onload = function () { try { cb(Math.max(1, Math.round((r2.result || '').split(/\s+/).filter(Boolean).length / 300))); } catch (e) { cb(1); } };
+          r2.onerror = function () { cb(1); }; r2.readAsText(f); return;
+        }
+        cb(Math.max(1, Math.round((f.size || 0) / (45 * 1024))));
+      }
+      function updateSizeEstimate() {
+        var box = el('sizeEstimate'); if (!box) return;
+        if (!state.files.length) { box.innerHTML = ''; return; }
+        var total = 0; state.files.forEach(function (f) { total += (f._pages || 1); });
+        total = Math.max(1, total); var t = tierPages(total);
+        box.innerHTML = '📦 حجم طلبك المتوقّع: <b style="color:var(--goldL)">' + SIZE_L[t] + '</b> · السعر التقديري: <b style="color:var(--goldL)">' + SIZE_P[t] + ' ريال عماني</b>';
+      }
+
       function renderFiles() {
         fileList.innerHTML = '';
         state.files.forEach(function (f, idx) {
@@ -1342,6 +1371,7 @@
           li.appendChild(del);
           fileList.appendChild(li);
         });
+        updateSizeEstimate();
       }
       function addFiles(list) {
         var rejected = [];
@@ -1351,6 +1381,7 @@
           if (f.size > MAX_FILE_BYTES) { rejected.push(f.name + ' (أكبر من 25MB)'); return; }
           if (state.files.length >= 10) { rejected.push(f.name + ' (تجاوزت 10 ملفات)'); return; }
           state.files.push(f);
+          estFilePages(f, function (p) { f._pages = p; updateSizeEstimate(); });
         });
         renderFiles();
         setError('files', rejected.length ? ('تم تجاهل: ' + rejected.join('، ')) : '');
@@ -1461,6 +1492,7 @@
             if (res.ok && res.j.ok) {
               var orderNo = '#' + res.j.orderId;
               el('orderNumber').textContent = orderNo;
+              if (res.j.sizeLabel) { el('orderSizeLine').innerHTML = '📦 حجم طلبك: <b>' + res.j.sizeLabel + '</b> · السعر: <b>' + res.j.price + ' ريال عماني</b>'; }
               // Pre-filled WhatsApp confirmation containing the order number.
               var waMsg = 'مرحباً إتقان 👋\nأرغب بتأكيد طلبي:\nرقم الطلب: ' + orderNo +
                 '\nالخدمة: ' + state.service +

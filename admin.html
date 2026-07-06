@@ -222,6 +222,7 @@
       function getKey(){ return localStorage.getItem(KEY_STORE) || ''; }
 
       var STATUS_LABEL = { new:'جديد', in_progress:'قيد العمل', ready:'جاهز', delivered:'مُسلّم' };
+      var SIZE_LABEL = { small:'صغير', medium:'متوسط', large:'كبير' };
       var orders = [];
 
       function api(path, opts){
@@ -360,6 +361,11 @@
             (o.notes? row('ملاحظات', o.notes) : '') +
             row('تاريخ الطلب', fmtDate(o.createdAt)) +
           '</div>'+
+          (o.sizeTier ? '<div class="d-section"><h4>حجم الطلب والسعر</h4>'+
+            '<div class="d-row"><span class="k">الحجم</span><span class="v" style="font-weight:800;">'+(SIZE_LABEL[o.sizeTier]||o.sizeTier)+'</span></div>'+
+            '<div class="d-row"><span class="k">السعر</span><span class="v" style="color:#6ee7b7;font-weight:800;">'+esc(o.price)+' ر.ع</span></div>'+
+            (o.sizePages? '<div class="d-row"><span class="k">حجم المادة</span><span class="v">~'+esc(o.sizePages)+' صفحة</span></div>' : '')+
+          '</div>' : '')+
           (o.discount ? '<div class="d-section"><h4>كود الخصم المستخدم</h4>'+
             '<div class="d-row"><span class="k">الكود</span><span class="v" style="color:var(--gold);font-weight:800;font-family:monospace;letter-spacing:.5px;">'+esc(o.discount.code)+'</span></div>'+
             '<div class="d-row"><span class="k">النسبة</span><span class="v">'+esc(o.discount.percent)+'%</span></div>'+

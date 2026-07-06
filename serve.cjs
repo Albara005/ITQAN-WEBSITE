@@ -151,7 +151,7 @@ function customerEmailHtml(order, opts) {
       <p style="font-size:15px;line-height:1.9;margin:0 0 16px;">${opts.intro}</p>
       ${opts.statusHtml || ''}
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
-        ${row('رقم الطلب', '#' + order.id)}${row('الخدمة', order.service)}${row('المادة', order.subject || '—')}${row('الموعد', order.deadline || 'غير محدد')}${row('الإضافات', addons)}${order.discount ? row('كود الخصم', order.discount.code + ' (' + order.discount.percent + '%)') : ''}
+        ${row('رقم الطلب', '#' + order.id)}${row('الخدمة', order.service)}${row('المادة', order.subject || '—')}${row('الموعد', order.deadline || 'غير محدد')}${row('الإضافات', addons)}${order.sizeTier ? row('حجم الطلب', SIZE_LABELS[order.sizeTier] + ' — ' + order.price + ' ر.ع') : ''}${order.discount ? row('كود الخصم', order.discount.code + ' (' + order.discount.percent + '%)') : ''}
       </table>
       <div style="text-align:center;padding:24px 0 8px;">
         <a href="${trackUrl}" style="display:inline-block;background:linear-gradient(135deg,#e8cd82,#a9802e);color:#1a1206;text-decoration:none;padding:13px 34px;border-radius:10px;font-weight:800;font-size:15px;">تتبّع حالة طلبك</a>
@@ -212,6 +212,7 @@ function notifyNewOrder(order) {
   const addons = (order.addons && order.addons.join('، ')) || 'لا يوجد';
   const deadline = order.deadline || 'غير محدد';
   const discountText = order.discount ? `${order.discount.code} (${order.discount.percent}%)` : 'لا يوجد';
+  const sizeText = order.sizeTier ? `${SIZE_LABELS[order.sizeTier]} — ${order.price} ر.ع (${order.sizePages} صفحة تقريبًا)` : 'غير محدد';
   const lines = [
     `طلب جديد ${num}`,
     `الخدمة: ${order.service}`,
@@ -222,6 +223,7 @@ function notifyNewOrder(order) {
     `الموعد: ${deadline}`,
     `الإضافات: ${addons}`,
     `كود الخصم: ${discountText}`,
+    `حجم الطلب: ${sizeText}`,
     `الملفات: ${order.files.length}`,
   ];
   console.log('\n📩 ' + lines.join('\n   '));
@@ -232,7 +234,7 @@ function notifyNewOrder(order) {
   const html = `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e7eaee;border-radius:14px;overflow:hidden;">
     <div style="background:#0c1a2b;color:#e8cd82;padding:18px 22px;font-size:18px;font-weight:700;">إتقان — طلب جديد ${num}</div>
     <table style="width:100%;border-collapse:collapse;font-size:14px;background:#fff;">
-      ${row('الخدمة', order.service)}${row('المادة', order.subject)}${row('الاسم', order.customer.name)}${row('واتساب', order.customer.whatsapp)}${row('البريد', order.customer.email)}${row('الموعد', deadline)}${row('الإضافات', addons)}${order.discount ? `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">كود الخصم</td><td style="padding:9px 14px;color:#a9802e;font-weight:800;border-bottom:1px solid #eef1f4;">${esc(order.discount.code)} (${order.discount.percent}%)</td></tr>` : ''}${row('عدد الملفات', order.files.length)}
+      ${row('الخدمة', order.service)}${row('المادة', order.subject)}${row('الاسم', order.customer.name)}${row('واتساب', order.customer.whatsapp)}${row('البريد', order.customer.email)}${row('الموعد', deadline)}${row('الإضافات', addons)}${order.discount ? `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">كود الخصم</td><td style="padding:9px 14px;color:#a9802e;font-weight:800;border-bottom:1px solid #eef1f4;">${esc(order.discount.code)} (${order.discount.percent}%)</td></tr>` : ''}${order.sizeTier ? `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">حجم الطلب</td><td style="padding:9px 14px;color:#0f766e;font-weight:800;border-bottom:1px solid #eef1f4;">${SIZE_LABELS[order.sizeTier]} — ${order.price} ر.ع</td></tr>` : ''}${row('عدد الملفات', order.files.length)}
     </table>${btn}
   </div>`;
   const mailOpts = {
@@ -266,6 +268,31 @@ if (!fs.existsSync(ORDERS_DB)) fs.writeFileSync(ORDERS_DB, '[]', 'utf8');
 
 function readOrders() { try { return JSON.parse(fs.readFileSync(ORDERS_DB, 'utf8')); } catch { return []; } }
 function writeOrders(list) { fs.writeFileSync(ORDERS_DB, JSON.stringify(list, null, 2), 'utf8'); }
+
+// ---- order size & pricing (estimated from the uploaded material's volume) ----
+const SIZE_PRICES = { small: 1, medium: 2, large: 3 };       // OMR
+const SIZE_LABELS = { small: 'صغير', medium: 'متوسط', large: 'كبير' };
+const SIZE_SMALL_MAX = 15;   // pages
+const SIZE_MEDIUM_MAX = 40;  // pages
+function tierFromPages(p) { return p <= SIZE_SMALL_MAX ? 'small' : p <= SIZE_MEDIUM_MAX ? 'medium' : 'large'; }
+function countPdfPages(buf) { const m = buf.toString('latin1').match(/\/Type\s*\/Page[^s]/g); return m ? m.length : 1; }
+// Estimate total "pages" of the order's files → size tier (no AI needed, instant).
+function estimateOrderSize(orderDir, files) {
+  let pages = 0;
+  for (const f of files) {
+    const ext = path.extname(f.storedName || '').toLowerCase();
+    const fp = path.join(orderDir, f.storedName);
+    try {
+      if (ext === '.pdf') pages += countPdfPages(fs.readFileSync(fp));
+      else if (['.png', '.jpg', '.jpeg', '.webp'].includes(ext)) pages += 1;
+      else if (ext === '.txt') pages += Math.max(1, Math.round(fs.readFileSync(fp, 'utf8').split(/\s+/).filter(Boolean).length / 300));
+      else pages += Math.max(1, Math.round((f.size || 0) / (45 * 1024))); // docx/ppt/zip — rough by size
+    } catch { pages += 1; }
+  }
+  pages = Math.max(1, pages);
+  const tier = tierFromPages(pages);
+  return { pages, tier, label: SIZE_LABELS[tier], price: SIZE_PRICES[tier] };
+}
 
 // Simple sequential order numbers starting at 1001 (displayed as #1001).
 const COUNTER_DB = path.join(ORDERS_DIR, 'counter.json');
@@ -381,18 +408,20 @@ function handleOrder(req, res) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email)) return fail(422, 'صيغة البريد الإلكتروني غير صحيحة.');
 
     const disc = findValidDiscount(fields.discountCode);
+    const sz = estimateOrderSize(orderDir, files);
     const order = {
       id: orderId, createdAt: new Date().toISOString(), status: 'new',
       service: fields.service || '', subject: fields.subject || '',
       deadline: fields.deadline || '', notes: fields.notes || '', addons,
       discount: disc ? { code: disc.code, percent: disc.percent } : null,
+      sizeTier: sz.tier, sizePages: sz.pages, price: sz.price,
       customer: { name: fields.name || '', email: fields.email || '', whatsapp: fields.whatsapp || '' },
       files,
     };
     const list = readOrders(); list.push(order); writeOrders(list);
     notifyNewOrder(order);
     notifyCustomerOrder(order);
-    sendJson(res, 200, { ok: true, orderId, fileCount: files.length });
+    sendJson(res, 200, { ok: true, orderId, fileCount: files.length, sizeTier: sz.tier, sizeLabel: sz.label, price: sz.price, pages: sz.pages });
   });
   req.pipe(bb);
 }
