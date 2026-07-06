@@ -8,6 +8,7 @@ const path = require('path');
 const crypto = require('crypto');
 const busboy = require('busboy');
 const nodemailer = require('nodemailer');
+const JSZip = require('jszip');
 
 const ROOT = __dirname;
 const PORT = process.env.PORT || 8000;
@@ -559,8 +560,33 @@ async function handleDeliverOrder(req, res) {
 // ---------- AI summary generation (Anthropic) ----------
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
 const AI_MODEL = process.env.AI_MODEL || 'claude-sonnet-5';
-const AI_READABLE = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.txt']);
-const AI_MAX_BYTES = 18 * 1024 * 1024; // keep the request under Anthropic's 32MB limit (base64 inflates ~33%)
+const AI_READABLE = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.txt', '.pptx', '.docx']);
+const AI_MAX_BYTES = 18 * 1024 * 1024;   // base64 budget for PDF/images (Anthropic ~32MB request limit)
+const AI_MAX_TEXT = 200000;              // cap extracted text length (chars)
+const AI_MAX_ZIP = 60 * 1024 * 1024;     // max pptx/docx file size to open for text extraction
+
+function decodeXmlEntities(s) { return s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'"); }
+// Extract readable text from a PowerPoint (.pptx) — slide by slide.
+async function extractPptxText(buf) {
+  const zip = await JSZip.loadAsync(buf);
+  const names = Object.keys(zip.files).filter((n) => /^ppt\/slides\/slide\d+\.xml$/.test(n))
+    .sort((a, b) => (a.match(/(\d+)/)[1] - b.match(/(\d+)/)[1]));
+  let out = '';
+  for (const n of names) {
+    const xml = await zip.file(n).async('string');
+    const t = (xml.match(/<a:t>([\s\S]*?)<\/a:t>/g) || []).map((x) => decodeXmlEntities(x.replace(/<[^>]+>/g, ''))).join(' ').trim();
+    if (t) out += '\n• شريحة: ' + t;
+    if (out.length > AI_MAX_TEXT) break;
+  }
+  return out;
+}
+// Extract readable text from a Word (.docx).
+async function extractDocxText(buf) {
+  const zip = await JSZip.loadAsync(buf);
+  const f = zip.file('word/document.xml'); if (!f) return '';
+  const xml = await f.async('string');
+  return (xml.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || []).map((x) => decodeXmlEntities(x.replace(/<[^>]+>/g, ''))).join(' ').slice(0, AI_MAX_TEXT);
+}
 const AI_SYSTEM = `أنت خبير إعداد ملخصات دراسية لمنصة "إتقان". لخّص المادة المرفقة إلى ملخص منظّم واضح ومفيد للمذاكرة.
 - اكتب بنفس لغة المادة الأصلية.
 - أعِد الناتج بصيغة JSON فقط دون أي نص خارجها، بالشكل:
@@ -587,8 +613,8 @@ function callAnthropic(messages, maxTokens) {
   });
 }
 
-// Gather the order's readable files as Claude content blocks (PDF/images) + inline text.
-function buildFileContent(order) {
+// Gather the order's readable files as Claude content blocks (PDF/images) + inline text (txt/pptx/docx).
+async function buildFileContent(order) {
   const dir = path.join(ORDERS_DIR, String(order.id));
   const blocks = []; let text = ''; let bytes = 0; let skipped = 0;
   for (const f of (order.files || [])) {
@@ -596,15 +622,15 @@ function buildFileContent(order) {
     if (!AI_READABLE.has(ext)) { skipped++; continue; }
     const fp = path.join(dir, f.storedName);
     let stat; try { stat = fs.statSync(fp); } catch { continue; }
-    if (bytes + stat.size > AI_MAX_BYTES) { skipped++; continue; }
-    bytes += stat.size;
     try {
-      if (ext === '.txt') { text += '\n\n' + fs.readFileSync(fp, 'utf8').slice(0, 120000); }
-      else if (ext === '.pdf') { blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fs.readFileSync(fp).toString('base64') } }); }
-      else { const mt = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg'; blocks.push({ type: 'image', source: { type: 'base64', media_type: mt, data: fs.readFileSync(fp).toString('base64') } }); }
-    } catch { /* skip unreadable */ }
+      if (ext === '.txt') { if (text.length < AI_MAX_TEXT) text += '\n\n' + fs.readFileSync(fp, 'utf8').slice(0, AI_MAX_TEXT); }
+      else if (ext === '.pptx') { if (stat.size <= AI_MAX_ZIP && text.length < AI_MAX_TEXT) text += '\n\n[' + f.originalName + ']' + await extractPptxText(fs.readFileSync(fp)); else skipped++; }
+      else if (ext === '.docx') { if (stat.size <= AI_MAX_ZIP && text.length < AI_MAX_TEXT) text += '\n\n[' + f.originalName + ']\n' + await extractDocxText(fs.readFileSync(fp)); else skipped++; }
+      else if (ext === '.pdf') { if (bytes + stat.size <= AI_MAX_BYTES) { blocks.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: fs.readFileSync(fp).toString('base64') } }); bytes += stat.size; } else skipped++; }
+      else { if (bytes + stat.size <= AI_MAX_BYTES) { const mt = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg'; blocks.push({ type: 'image', source: { type: 'base64', media_type: mt, data: fs.readFileSync(fp).toString('base64') } }); bytes += stat.size; } else skipped++; }
+    } catch { skipped++; }
   }
-  return { blocks, text, count: blocks.length + (text ? 1 : 0), skipped };
+  return { blocks, text: text.slice(0, AI_MAX_TEXT), count: blocks.length + (text ? 1 : 0), skipped };
 }
 
 function parseSummaryJson(t) {
@@ -622,8 +648,8 @@ async function handleSummaryGenerate(req, res) {
   const id = String(body.id || '').replace(/[^0-9]/g, '');
   const list = readOrders(); const o = list.find((x) => String(x.id) === id);
   if (!o) return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' });
-  const fc = buildFileContent(o);
-  if (!fc.count) return sendJson(res, 400, { ok: false, error: 'لا توجد ملفات قابلة للقراءة (PDF/صور/نص). حوّل ملفات Word/PowerPoint إلى PDF، وتأكد أن الحجم أقل من 18MB.' });
+  const fc = await buildFileContent(o);
+  if (!fc.count) return sendJson(res, 400, { ok: false, error: 'لا توجد ملفات قابلة للقراءة (PDF/صور/نص/PowerPoint/Word).' });
   const userContent = [{ type: 'text', text: 'لخّص المادة المرفقة في ملخص دراسي منظّم.' + (fc.text ? ('\n\nنص إضافي من المادة:\n' + fc.text) : '') }].concat(fc.blocks);
   try {
     const resp = await callAnthropic([{ role: 'user', content: userContent }]);
