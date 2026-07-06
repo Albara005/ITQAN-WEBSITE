@@ -912,7 +912,7 @@
                   accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.txt,.zip" />
                 <div class="dz-icon">📎</div>
                 <p class="dz-main">اسحب الملفات هنا أو <span class="dz-link">اختر من جهازك</span></p>
-                <p class="dz-hint">PDF · Word · PowerPoint · صور — حتى 25 ميجابايت للملف</p>
+                <p class="dz-hint">PDF · Word · PowerPoint · صور — حتى 80 ميجابايت للملف</p>
               </div>
               <ul class="file-list" id="fileList"></ul>
               <span class="err err-block" data-for="files"></span>
@@ -1277,7 +1277,7 @@
         { id: 'تسليم سريع', name: 'تسليم سريع', desc: 'أولوية في التنفيذ', price: 'حسب الطلب' }
       ];
       var ALLOWED_EXT = ['pdf','doc','docx','ppt','pptx','png','jpg','jpeg','webp','txt','zip'];
-      var MAX_FILE_BYTES = 25 * 1024 * 1024;
+      var MAX_FILE_BYTES = 80 * 1024 * 1024;
 
       var form = el('orderForm');
       var submitBtn = el('submitBtn');
@@ -1378,7 +1378,7 @@
         Array.prototype.forEach.call(list, function (f) {
           var ext = (f.name.split('.').pop() || '').toLowerCase();
           if (ALLOWED_EXT.indexOf(ext) === -1) { rejected.push(f.name + ' (نوع غير مدعوم)'); return; }
-          if (f.size > MAX_FILE_BYTES) { rejected.push(f.name + ' (أكبر من 25MB)'); return; }
+          if (f.size > MAX_FILE_BYTES) { rejected.push(f.name + ' (أكبر من 80MB)'); return; }
           if (state.files.length >= 10) { rejected.push(f.name + ' (تجاوزت 10 ملفات)'); return; }
           state.files.push(f);
           estFilePages(f, function (p) { f._pages = p; updateSizeEstimate(); });

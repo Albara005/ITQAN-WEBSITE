@@ -258,7 +258,7 @@ const MIME = {
 };
 
 // Upload constraints
-const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_FILE_BYTES = 80 * 1024 * 1024;
 const MAX_FILES = 10;
 const ALLOWED_EXT = new Set(['.pdf', '.doc', '.docx', '.ppt', '.pptx', '.png', '.jpg', '.jpeg', '.webp', '.txt', '.zip']);
 const ORDER_STATUSES = ['new', 'in_progress', 'ready', 'delivered'];
