@@ -598,7 +598,7 @@ const AI_SYSTEM = `أنت "وكيل إتقان" — مساعد ذكي متخصص
 
 function callAnthropic(messages, maxTokens) {
   return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({ model: AI_MODEL, max_tokens: maxTokens || 8000, system: AI_SYSTEM, messages });
+    const payload = JSON.stringify({ model: AI_MODEL, max_tokens: maxTokens || 16000, system: AI_SYSTEM, messages });
     const req = https.request({
       method: 'POST', host: 'api.anthropic.com', path: '/v1/messages',
       headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) },
