@@ -589,14 +589,15 @@ async function extractDocxText(buf) {
   const xml = await f.async('string');
   return (xml.match(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g) || []).map((x) => decodeXmlEntities(x.replace(/<[^>]+>/g, ''))).join(' ').slice(0, AI_MAX_TEXT);
 }
-const AI_SYSTEM = `أنت "وكيل إتقان" — مساعد ذكي متخصص في إعداد وتحرير الملخصات الدراسية، تتحدّث مع فريق إتقان بأسلوب طبيعي وودود ومحترف (مثل مساعد حقيقي).
-- تفهم طلبات التعديل والأسئلة وتنفّذها بذكاء مع مراعاة سياق المحادثة السابقة.
-- اكتب الملخص بنفس لغة مادة العميل.
-- ردّك دائمًا بصيغة JSON فقط دون أي نص خارجها، بالشكل التالي:
-{"reply":"ردّ قصير طبيعي بلغة المستخدم يشرح ما فعلتَه أو يجيب على سؤاله","summary":{"title":"عنوان","subject":"المادة","language":"ar|en","sections":[{"title":"القسم","points":["نقطة"],"terms":[{"term":"مصطلح","def":"تعريف"}]}]}}
-- "summary" يحتوي دائمًا الملخص الكامل المحدّث (وليس التغييرات فقط)، مع إبقاء ما لم يُطلب تغييره.
-- إن كان الطلب سؤالاً فقط دون تعديل، أجب في "reply" وأعد "summary" كما هو دون تغيير.
-- اجعل النقاط مركّزة ومفيدة للمذاكرة، و"reply" مختصرًا وودودًا.`;
+const AI_SYSTEM = `أنت "وكيل إتقان" — مصمّم ومحرّر ملخصات دراسية محترف لمنصة إتقان. تتحدّث بأسلوب طبيعي وودود.
+مهمتك: إنتاج ملخص دراسي كامل على شكل مستند HTML مصمَّم باحترافية وجاذبية.
+- لديك حرية إبداعية كاملة في التصميم: الألوان، التخطيط، الجداول، البطاقات، الأعمدة، الصناديق الجانبية، الأيقونات (رموز يونيكود)، الخطوط الزمنية… اختر ما يناسب محتوى المادة. **نوّع التصميم حسب الموضوع — لا تجعل كل الملخصات بنفس الشكل.**
+- المستند: HTML كامل ومكتفٍ ذاتيًا مع CSS داخلي في <style> فقط (بدون أي JavaScript). بلغة مادة العميل؛ إن كانت عربية فاجعله dir="rtl" واستعمل خطوطًا عربية أنيقة من Google Fonts (مثل Cairo/Tajawal).
+- مناسب للطباعة على ورق A4: عرض مريح، هوامش، واجعل الألوان تُطبع بإضافة -webkit-print-color-adjust:exact و print-color-adjust:exact. احترافي، منظّم، ومقروء.
+- ضع ترويسة تحمل اسم "إتقان" وطابعًا أكاديميًا. (ألوان مقترحة للهوية: كحلي #0c1a2b وذهبي #cda14a — لكنك حرّ في اختيار لوحة ألوان تناسب المادة.)
+- المحتوى دقيق ومركّز ومفيد للمذاكرة (عناوين، نقاط، مصطلحات، أمثلة، جداول مقارنة حسب الحاجة).
+صيغة ردّك بالضبط: اكتب أولًا ردًّا طبيعيًا قصيرًا بلغة المستخدم يشرح ما فعلتَه، ثم سطرًا مستقلًا فيه \`===HTML===\`، ثم مستند HTML الكامل ولا شيء بعده.
+عند التعديل: طبّق طلب المستخدم على المستند وأعد المستند كاملاً محدَّثًا بنفس الصيغة (مع الحفاظ على ما لم يُطلب تغييره).`;
 
 function callAnthropic(messages, maxTokens) {
   return new Promise((resolve, reject) => {
@@ -638,14 +639,22 @@ async function buildFileContent(order) {
 }
 
 function parseAgent(t) {
-  t = String(t).trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '');
-  const s = t.indexOf('{'), e = t.lastIndexOf('}');
-  if (s < 0 || e < 0) throw new Error('لم يُرجع الذكاء ردًّا صالحًا');
-  let obj;
-  try { obj = JSON.parse(t.slice(s, e + 1)); }
-  catch (err) { throw new Error('الرد طويل وانقطع — جرّب طلبًا أبسط أو قسّم التعديل'); }
-  if (!obj.summary || !obj.summary.sections) throw new Error('لم يُرجع الذكاء ملخصًا كاملاً');
-  return { reply: obj.reply || 'تم.', summary: obj.summary };
+  t = String(t);
+  const idx = t.indexOf('===HTML===');
+  let reply, html;
+  if (idx >= 0) {
+    reply = t.slice(0, idx).trim() || 'تم.';
+    html = t.slice(idx + '===HTML==='.length).trim();
+  } else {
+    // fallback: response may be the HTML itself (or wrapped)
+    const h = t.search(/<!doctype|<html|<body|<div|<section|<style/i);
+    if (h < 0) throw new Error('لم يُرجع الذكاء تصميمًا صالحًا');
+    reply = t.slice(0, h).trim() || 'تم.';
+    html = t.slice(h).trim();
+  }
+  html = html.replace(/^```html\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+  if (!/</.test(html)) throw new Error('لم يُرجع الذكاء تصميمًا صالحًا');
+  return { reply, html };
 }
 
 // Admin: generate a summary draft from the order's uploaded files.
@@ -662,10 +671,10 @@ async function handleSummaryGenerate(req, res) {
   try {
     const resp = await callAnthropic([{ role: 'user', content: userContent }]);
     const out = parseAgent(resp.content.map((c) => c.text || '').join(''));
-    o.summary = { data: out.summary, turns: [{ role: 'assistant', text: out.reply }], updatedAt: new Date().toISOString() };
+    o.summary = { html: out.html, turns: [{ role: 'assistant', text: out.reply }], updatedAt: new Date().toISOString() };
     writeOrders(list);
     console.log(`🤖 ملخص #${o.id} تولّد (${resp.usage.input_tokens}+${resp.usage.output_tokens} توكن)`);
-    sendJson(res, 200, { ok: true, data: out.summary, reply: out.reply, usage: resp.usage });
+    sendJson(res, 200, { ok: true, html: out.html, reply: out.reply, usage: resp.usage });
   } catch (e) { sendJson(res, 500, { ok: false, error: 'تعذّر التوليد: ' + e.message }); }
 }
 
@@ -678,20 +687,20 @@ async function handleSummaryChat(req, res) {
   const msg = String(body.message || '').slice(0, 2000).trim();
   if (!msg) return sendJson(res, 400, { ok: false, error: 'اكتب التعديل المطلوب.' });
   const list = readOrders(); const o = list.find((x) => String(x.id) === id);
-  if (!o || !o.summary) return sendJson(res, 400, { ok: false, error: 'ولّد الملخص أولاً.' });
+  if (!o || !o.summary || !o.summary.html) return sendJson(res, 400, { ok: false, error: 'ولّد الملخص أولاً.' });
   const log = (o.summary.turns || []).slice(-8).map((t) => (t.role === 'user' ? 'المستخدم: ' : 'المساعد: ') + t.text).join('\n');
-  const prompt = 'الملخص الحالي (JSON):\n' + JSON.stringify(o.summary.data) +
+  const prompt = 'المستند الحالي (HTML):\n' + o.summary.html +
     (log ? ('\n\nسجل المحادثة السابق:\n' + log) : '') +
     '\n\nطلب المستخدم الجديد: ' + msg +
-    '\n\nنفّذ الطلب وأعد JSON بالشكل المطلوب {"reply":...,"summary":...}.';
+    '\n\nطبّق الطلب وأعد بالصيغة المطلوبة (ردّ ثم سطر ===HTML=== ثم المستند الكامل المحدّث).';
   try {
     const resp = await callAnthropic([{ role: 'user', content: prompt }]);
     const out = parseAgent(resp.content.map((c) => c.text || '').join(''));
-    o.summary.data = out.summary;
+    o.summary.html = out.html;
     o.summary.turns = (o.summary.turns || []).concat([{ role: 'user', text: msg }, { role: 'assistant', text: out.reply }]);
     o.summary.updatedAt = new Date().toISOString();
     writeOrders(list);
-    sendJson(res, 200, { ok: true, data: out.summary, reply: out.reply, usage: resp.usage });
+    sendJson(res, 200, { ok: true, html: out.html, reply: out.reply, usage: resp.usage });
   } catch (e) { sendJson(res, 500, { ok: false, error: e.message }); }
 }
 

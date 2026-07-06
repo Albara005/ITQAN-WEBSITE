@@ -663,24 +663,8 @@
       });
 
       // ---- AI summary studio ----
-      var STU_ACC = ["4F46E5","0891B2","E11D48","EA580C","7C3AED","059669","DB2777"];
-      function stEsc(x){ return String(x==null?'':x).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
-      function renderSummaryHtml(sum){
-        if(!sum||!sum.sections){ return '<div style="padding:40px;font-family:sans-serif;color:#64748b;text-align:center;">لا يوجد ملخص بعد.</div>'; }
-        var rtl=(sum.language||'ar')==='ar'; var dir=rtl?'rtl':'ltr';
-        var secs=(sum.sections||[]).map(function(s,i){
-          var a=STU_ACC[i%STU_ACC.length];
-          var pts=(s.points||[]).map(function(p){return '<li>'+stEsc(p)+'</li>';}).join('');
-          var terms=(s.terms&&s.terms.length)?'<div class="terms"><h4>◆ مصطلحات</h4><ul>'+s.terms.map(function(t){ return (typeof t==='string') ? '<li>'+stEsc(t)+'</li>' : '<li><b>'+stEsc(t.term||'')+'</b>'+(t.def?': '+stEsc(t.def):'')+'</li>'; }).join('')+'</ul></div>':'';
-          return '<section class="sec" style="--acc:#'+a+';--accbg:#'+a+'14;--accbd:#'+a+'55"><div class="sh"><span class="num">'+(i+1)+'</span><h2>'+stEsc(s.title)+'</h2></div><ul>'+pts+'</ul>'+terms+'</section>';
-        }).join('');
-        return '<!doctype html><html lang="'+(sum.language||'ar')+'" dir="'+dir+'"><head><meta charset="utf-8">'+
-          '<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet"><style>'+
-          '*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{margin:0;font-family:Tajawal,sans-serif;color:#0F172A;font-size:13px;line-height:1.9;background:#fff}h1,h2,h3,h4{font-family:Cairo,sans-serif;margin:0}'+
-          '.band{background:linear-gradient(120deg,#4F46E5,#7C3AED 45%,#DB2777);color:#fff;padding:32px 40px 26px}.brand{font-size:13px;font-weight:800;letter-spacing:1px;margin-bottom:10px;opacity:.95}.tag{display:inline-block;background:rgba(255,255,255,.22);padding:3px 13px;border-radius:20px;font-size:10.5px;font-weight:700;margin-bottom:9px}.band h1{font-size:26px;font-weight:800}.meta{color:#f1e9ff;font-size:12.5px;margin-top:7px}'+
-          '.wrap{padding:24px 40px}.sec{margin-bottom:18px;break-inside:avoid}.sh{display:flex;align-items:center;gap:11px;border-bottom:2px solid var(--accbd);padding-bottom:7px;margin-bottom:9px}.num{flex:0 0 auto;width:32px;height:32px;border-radius:9px;background:var(--acc);color:#fff;font-family:Cairo;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center}.sh h2{font-size:17px;color:var(--acc);font-weight:800}ul{margin:0;padding-'+(rtl?'right':'left')+':20px}li{margin-bottom:5px}.sec li b{color:var(--acc)}.terms{background:var(--accbg);border:1.5px solid var(--accbd);border-radius:10px;padding:10px 15px;margin-top:8px}.terms h4{font-size:12px;color:var(--acc);font-weight:700;margin-bottom:5px}'+
-          '</style></head><body><div class="band"><div class="brand">إتقان — ACADEMIC STUDIO</div><span class="tag">ملخص دراسي · بالذكاء</span><h1>'+stEsc(sum.title||'')+'</h1><div class="meta">'+stEsc(sum.subject||'')+' · إعداد إتقان</div></div><div class="wrap">'+secs+'</div></body></html>';
-      }
+      // The agent now returns a full self-contained HTML document; render it as-is.
+      function renderSummaryHtml(html){ return html || '<div style="display:flex;align-items:center;justify-content:center;height:100%;font-family:sans-serif;color:#94a3b8;text-align:center;padding:20px;">لا يوجد ملخص بعد.</div>'; }
       var studioOrder=null, studioData=null, studioBusy=false;
       function stAddMsg(role, text){
         var m=document.createElement('div'); m.className='chat-msg '+role;
@@ -698,7 +682,7 @@
       function stSetBusy(b){ studioBusy=b; el('stSend').disabled=b; }
       function stRenderPreview(){ el('stPreview').srcdoc = renderSummaryHtml(studioData); }
       function openStudio(o){
-        studioOrder=o; studioData=(o.summary&&o.summary.data)||null;
+        studioOrder=o; studioData=(o.summary&&o.summary.html)||null;
         el('stTitle').textContent='🤖 ملخص الطلب #'+o.id;
         el('stMsgs').innerHTML=''; el('aiStudio').classList.add('open'); stSetBusy(false);
         if(studioData){
@@ -719,7 +703,7 @@
         api('/api/order/summary/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:studioOrder.id}) })
           .then(function(r){ return r.json(); })
           .then(function(j){ stSetBusy(false); stTyping(false);
-            if(j.ok){ studioData=j.data; studioOrder.summary={data:j.data}; stRenderPreview(); stAddMsg('bot', j.reply || 'تم توليد الملخص ✅ اطلب أي تعديل تريده.'); }
+            if(j.ok){ studioData=j.html; studioOrder.summary={html:j.html}; stRenderPreview(); stAddMsg('bot', j.reply || 'تم توليد الملخص ✅ اطلب أي تعديل تريده.'); }
             else { stAddMsg('bot', j.error || 'تعذّر التوليد'); }
           }).catch(function(){ stSetBusy(false); stTyping(false); stAddMsg('bot','تعذّر الاتصال بالخادم.'); });
       }
@@ -731,7 +715,7 @@
         api('/api/order/summary/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({id:studioOrder.id, message:msg}) })
           .then(function(r){ return r.json(); })
           .then(function(j){ stSetBusy(false); stTyping(false);
-            if(j.ok){ studioData=j.data; if(studioOrder.summary) studioOrder.summary.data=j.data; stRenderPreview(); stAddMsg('bot', j.reply || 'تم ✅'); }
+            if(j.ok){ studioData=j.html; if(studioOrder.summary) studioOrder.summary.html=j.html; stRenderPreview(); stAddMsg('bot', j.reply || 'تم ✅'); }
             else { stAddMsg('bot', j.error || 'تعذّر التعديل'); }
           }).catch(function(){ stSetBusy(false); stTyping(false); stAddMsg('bot','تعذّر الاتصال.'); });
       }
