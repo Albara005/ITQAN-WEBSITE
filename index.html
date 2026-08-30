@@ -785,7 +785,7 @@
         <form id="trackForm" style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
           <div style="position:relative;flex:1;min-width:200px;">
             <span style="position:absolute;right:18px;top:50%;transform:translateY(-50%);color:var(--gold);font-weight:800;pointer-events:none;">#</span>
-            <input id="trackInput" inputmode="numeric" autocomplete="off" placeholder="رقم الطلب" style="width:100%;box-sizing:border-box;padding:15px 36px 15px 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:#fff;font-size:16px;font-family:inherit;" />
+            <input id="trackInput" autocomplete="off" placeholder="رقم الطلب — مثال: 1001-A7X" style="width:100%;box-sizing:border-box;padding:15px 36px 15px 18px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:#fff;font-size:16px;font-family:inherit;" />
           </div>
           <button type="submit" style="background:linear-gradient(135deg,var(--goldL),var(--goldD));color:#1a1206;border:none;padding:15px 34px;border-radius:12px;font-weight:800;font-size:16px;cursor:pointer;font-family:inherit;">تتبّع</button>
         </form>
@@ -837,7 +837,7 @@
         }
         form.addEventListener('submit', function (e) {
           e.preventDefault();
-          var id = (input.value || '').replace(/[^0-9]/g, '');
+          var id = (input.value || '').trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
           if (!id) { msg('الرجاء إدخال رقم الطلب.', '#f0a1a1'); return; }
           msg('جارٍ البحث…');
           fetch('/api/order/track?id=' + encodeURIComponent(id))
@@ -848,7 +848,7 @@
         // Deep-link from the confirmation email: /?track=1001 → auto-fill, search, and scroll here.
         var pre = new URLSearchParams(window.location.search).get('track');
         if (pre) {
-          var digits = pre.replace(/[^0-9]/g, '');
+          var digits = pre.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
           if (digits) {
             input.value = digits;
             setTimeout(function () {

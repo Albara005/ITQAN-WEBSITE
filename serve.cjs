@@ -297,14 +297,28 @@ function estimateOrderSize(orderDir, files) {
   return { pages, tier, label: SIZE_LABELS[tier], price: SIZE_PRICES[tier] };
 }
 
-// Simple sequential order numbers starting at 1001 (displayed as #1001).
+// Order numbers: sequential part + short random suffix, e.g. 1001-A7X.
+// The sequence keeps orders readable/ordered; the suffix makes numbers unguessable
+// so nobody can enumerate other customers' orders on the public tracking page.
 const COUNTER_DB = path.join(ORDERS_DIR, 'counter.json');
+const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I/O/0/1 (avoids confusion)
+function randomSuffix(len) {
+  let s = '';
+  const buf = crypto.randomBytes(len);
+  for (let i = 0; i < len; i++) s += ID_CHARS[buf[i] % ID_CHARS.length];
+  return s;
+}
 function nextOrderNumber() {
   let last = 1000;
   try { last = JSON.parse(fs.readFileSync(COUNTER_DB, 'utf8')).last || 1000; } catch { /* first run */ }
   const n = last + 1;
   fs.writeFileSync(COUNTER_DB, JSON.stringify({ last: n }), 'utf8');
-  return String(n);
+  return String(n) + '-' + randomSuffix(3);
+}
+// Normalise an order id coming from a request (accepts 1001-a7x / #1001-A7X / 1001).
+// Only [A-Z0-9-] survives, so it is always safe to use as a folder name.
+function cleanOrderId(v) {
+  return String(v == null ? '' : v).trim().toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 24);
 }
 
 // ---- portfolio / work samples (manageable from the dashboard) ----
@@ -452,7 +466,7 @@ async function handleStatus(req, res) {
 async function handleDeleteOrder(req, res) {
   if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
   const body = await readBody(req);
-  const id = String(body.id || '').replace(/[^0-9]/g, '');
+  const id = cleanOrderId(body.id);
   if (!id) return sendJson(res, 400, { ok: false, error: 'رقم طلب غير صحيح.' });
   const list = readOrders();
   const idx = list.findIndex((x) => String(x.id) === id);
@@ -473,7 +487,7 @@ function handleUploadDeliverable(req, res) {
   try { bb = busboy({ headers: req.headers, defParamCharset: 'utf8', limits: { fileSize: 30 * 1024 * 1024, files: 1 } }); }
   catch { return sendJson(res, 400, { ok: false, error: 'صيغة الطلب غير صحيحة.' }); }
   let orderId = ''; let stored = null; let rejected = false; let tooBig = false; const pending = [];
-  bb.on('field', (n, v) => { if (n === 'id') orderId = String(v).replace(/[^0-9]/g, ''); });
+  bb.on('field', (n, v) => { if (n === 'id') orderId = cleanOrderId(v); });
   bb.on('file', (n, stream, info) => {
     const original = info.filename || 'file';
     const ext = path.extname(sanitizeName(original)).toLowerCase();
@@ -510,7 +524,7 @@ function handleUploadDeliverable(req, res) {
 async function handleDeleteDeliverable(req, res) {
   if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
   const body = await readBody(req);
-  const id = String(body.id || '').replace(/[^0-9]/g, '');
+  const id = cleanOrderId(body.id);
   const name = String(body.name || '');
   if (!DELIV_NAME_RE.test(name)) return sendJson(res, 400, { ok: false, error: 'اسم غير صحيح.' });
   const list = readOrders();
@@ -524,7 +538,7 @@ async function handleDeleteDeliverable(req, res) {
 
 // Download a deliverable — admin (via key) or the customer (via the order's secret token).
 function handleDeliverableDownload(req, res, query) {
-  const id = String(query.get('id') || '').replace(/[^0-9]/g, '');
+  const id = cleanOrderId(query.get('id'));
   const name = String(query.get('name') || '');
   const token = String(query.get('t') || '');
   if (!id || !DELIV_NAME_RE.test(name)) { res.writeHead(400); return res.end('Bad request'); }
@@ -547,7 +561,7 @@ function handleDeliverableDownload(req, res, query) {
 async function handleDeliverOrder(req, res) {
   if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
   const body = await readBody(req);
-  const id = String(body.id || '').replace(/[^0-9]/g, '');
+  const id = cleanOrderId(body.id);
   const list = readOrders();
   const o = list.find((x) => String(x.id) === id);
   if (!o) return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' });
@@ -598,9 +612,7 @@ const AI_SYSTEM = `أنت "وكيل إتقان" — مصمّم ومحرّر مل
   • ضع الهوامش الداخلية عبر padding على العنصر الحاوي/‏body (مثل padding: 36px 46px 64px) بدل هوامش الصفحة.
   • **التناسق:** استخدم break-inside: avoid على كل بطاقة/صندوق/قسم حتى لا ينقسم أي عنصر بين صفحتين، بمسافات متّسقة ومنظّمة. اجعل المحتوى مرتّبًا ومريحًا للعين على A4.
   • اجعل الألوان تُطبع: -webkit-print-color-adjust:exact و print-color-adjust:exact.
-- **شعار إتقان (إلزامي):** ضع الشعار في ترويسة كل ملخص كوحدة واحدة = صورة الرمز ثم أسفلها مباشرة كلمة «إتقان» بخط عريض بلون كحلي، عبر هذا الكود بالضبط (لا تحذفه ولا تغيّر رابط الصورة أبدًا):
-  <div style="text-align:center;line-height:1"><img src="https://www.itqanoman.co/logo.png" alt="إتقان" style="height:58px;width:auto;display:inline-block" /><div style="font-family:'Cairo',sans-serif;font-weight:800;font-size:23px;color:#0c1a2b;margin-top:3px;letter-spacing:1px">إتقان</div></div>
-  ادمجه بأناقة في تصميم الترويسة. (ألوان الهوية المقترحة: كحلي #0c1a2b وذهبي #cda14a — لكنك حرّ في لوحة الألوان.)
+- **هوية إتقان (إلزامي — دليل ملكية):** لا تضع أي صورة شعار إطلاقًا. بدلًا من ذلك ضع في ترويسة كل ملخص سطر الهوية النصّي التالي بخط بارز وأنيق: «إتقان — منصة الملخصات والخدمات الأكاديمية». اجعل كلمة «إتقان» أكبر وأعرض (font-weight:800) وبقية السطر أصغر منها، ونسّقه بأناقة ضمن تصميم الترويسة. (ألوان الهوية المقترحة: كحلي #0c1a2b وذهبي #cda14a — لكنك حرّ في لوحة الألوان.)
 - **حقوق إتقان (إلزامي):** سطر حقوق ثابت أسفل كل صفحة (position:fixed; bottom:0; width:100%; text-align:center; padding:6px 0) بخط صغير، نصّه فقط: «© 2026 إتقان — جميع الحقوق محفوظة» (بدون رابط وبدون أي نص آخر بجانبه). واترك padding-bottom كافيًا في المحتوى حتى لا يتداخل مع سطر الحقوق. **بدون أي علامة مائية إطلاقًا.**
 - المحتوى دقيق ومركّز ومفيد للمذاكرة (عناوين، نقاط، مصطلحات، أمثلة، جداول مقارنة حسب الحاجة).
 صيغة ردّك بالضبط: اكتب أولًا ردًّا طبيعيًا قصيرًا بلغة المستخدم يشرح ما فعلتَه، ثم سطرًا مستقلًا فيه \`===HTML===\`، ثم مستند HTML الكامل ولا شيء بعده.
@@ -692,7 +704,7 @@ async function handleSummaryGenerate(req, res) {
   if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
   if (!ANTHROPIC_API_KEY) return sendJson(res, 400, { ok: false, error: 'مفتاح الذكاء غير مضبوط على الخادم.' });
   const body = await readBody(req);
-  const id = String(body.id || '').replace(/[^0-9]/g, '');
+  const id = cleanOrderId(body.id);
   const list = readOrders(); const o = list.find((x) => String(x.id) === id);
   if (!o) return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' });
   const fc = await buildFileContent(o);
@@ -722,7 +734,7 @@ async function handleSummaryChat(req, res) {
   if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
   if (!ANTHROPIC_API_KEY) return sendJson(res, 400, { ok: false, error: 'مفتاح الذكاء غير مضبوط على الخادم.' });
   const body = await readBody(req);
-  const id = String(body.id || '').replace(/[^0-9]/g, '');
+  const id = cleanOrderId(body.id);
   const msg = String(body.message || '').slice(0, 2000).trim();
   if (!msg) return sendJson(res, 400, { ok: false, error: 'اكتب التعديل المطلوب.' });
   const list = readOrders(); const o = list.find((x) => String(x.id) === id);
@@ -746,7 +758,7 @@ async function handleSummaryChat(req, res) {
 // Admin: fetch the stored summary (to reopen the studio).
 function handleSummaryGet(req, res, query) {
   if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
-  const id = String(query.get('id') || '').replace(/[^0-9]/g, '');
+  const id = cleanOrderId(query.get('id'));
   const o = readOrders().find((x) => String(x.id) === id);
   if (!o) return sendJson(res, 404, { ok: false, error: 'غير موجود.' });
   sendJson(res, 200, { ok: true, summary: o.summary || null });
@@ -775,7 +787,7 @@ async function handleClearOrders(req, res) {
 // Look up an order by its number. Returns ONLY non-sensitive fields (status, service,
 // date) — never the customer's name, contacts, notes, or files.
 function handleTrackOrder(res, query) {
-  const id = String(query.get('id') || '').replace(/[^0-9]/g, '');
+  const id = cleanOrderId(query.get('id'));
   if (!id) return sendJson(res, 400, { ok: false, error: 'أدخل رقم الطلب.' });
   const o = readOrders().find((x) => String(x.id) === id);
   if (!o) return sendJson(res, 404, { ok: false, error: 'لا يوجد طلب بهذا الرقم. تأكّد من الرقم وحاول مرة أخرى.' });
