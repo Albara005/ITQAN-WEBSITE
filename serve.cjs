@@ -622,7 +622,9 @@ const AI_SYSTEM = `أنت "وكيل إتقان" — مصمّم ومحرّر مل
 // accumulates text deltas, and resolves with the same shape { content:[{text}], usage }.
 function callAnthropic(messages, maxTokens) {
   return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({ model: AI_MODEL, max_tokens: maxTokens || 16000, system: AI_SYSTEM, messages, stream: true });
+    // Streaming lets us use a high ceiling safely; you are only billed for tokens
+    // actually produced, and a truncated document is worse than a slightly longer wait.
+    const payload = JSON.stringify({ model: AI_MODEL, max_tokens: maxTokens || 40000, system: AI_SYSTEM, messages, stream: true });
     const req = https.request({
       method: 'POST', host: 'api.anthropic.com', path: '/v1/messages',
       headers: { 'x-api-key': ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) },
@@ -633,7 +635,7 @@ function callAnthropic(messages, maxTokens) {
         res.on('end', () => { let m = 'خطأ من الذكاء (' + res.statusCode + ')'; try { m = JSON.parse(d).error.message || m; } catch {} reject(new Error(m)); });
         return;
       }
-      let text = ''; const usage = { input_tokens: 0, output_tokens: 0 }; let buf = '';
+      let text = ''; const usage = { input_tokens: 0, output_tokens: 0 }; let buf = ''; let stopReason = null;
       res.setTimeout(90000, () => req.destroy(new Error('انقطع البث'))); // per-chunk idle guard
       res.on('data', (chunk) => {
         buf += chunk.toString('utf8');
@@ -647,12 +649,20 @@ function callAnthropic(messages, maxTokens) {
             const ev = JSON.parse(data);
             if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') text += ev.delta.text;
             else if (ev.type === 'message_start' && ev.message && ev.message.usage) usage.input_tokens = ev.message.usage.input_tokens;
-            else if (ev.type === 'message_delta' && ev.usage) usage.output_tokens = ev.usage.output_tokens;
+            else if (ev.type === 'message_delta') {
+              if (ev.usage) usage.output_tokens = ev.usage.output_tokens;
+              if (ev.delta && ev.delta.stop_reason) stopReason = ev.delta.stop_reason;
+            }
             else if (ev.type === 'error') reject(new Error((ev.error && ev.error.message) || 'خطأ أثناء البث'));
           } catch {}
         }
       });
-      res.on('end', () => { if (text) resolve({ content: [{ type: 'text', text }], usage }); else reject(new Error('لم يصل رد من الذكاء')); });
+      res.on('end', () => {
+        if (!text) return reject(new Error('لم يصل رد من الذكاء'));
+        // Never save a document that was cut off at the token ceiling — it renders broken.
+        if (stopReason === 'max_tokens') return reject(new Error('الملخص طويل جدًا وانقطع قبل اكتماله. جرّب طلبًا أصغر (مثل: عدّل قسمًا واحدًا فقط) أو اطلب اختصار الملخص.'));
+        resolve({ content: [{ type: 'text', text }], usage, stopReason });
+      });
     });
     req.on('timeout', () => req.destroy(new Error('انتهت المهلة قبل بدء الرد')));
     req.on('error', reject);
