@@ -636,6 +636,7 @@
           return '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(10,14,23,.5);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px 14px;'+(d.expired?'opacity:.5;':'')+'">'+
             '<span style="font-weight:800;font-family:monospace;font-size:1.05rem;color:var(--gold);letter-spacing:.5px;">'+esc(d.code)+'</span>'+
             '<span class="badge s-ready">'+d.percent+'%</span>'+
+            '<span class="badge" style="background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.35);">استُخدم '+(d.uses||0)+' مرة</span>'+
             '<span class="muted" style="font-size:.82rem;">'+fmtExpiry(d)+'</span>'+
             '<button class="btn btn-ghost" data-code="'+esc(d.code)+'" style="margin-inline-start:auto;">حذف</button>'+
           '</div>';

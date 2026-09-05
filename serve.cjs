@@ -357,6 +357,16 @@ function findValidDiscount(code) {
   if (d.expiresAt && new Date(d.expiresAt).getTime() < Date.now()) return null;
   return d;
 }
+// Bumps a code's usage count by 1. Called once per successfully created order
+// that used the code (see handleOrder) — never on mere validation/preview.
+function incrementDiscountUsage(code) {
+  const c = String(code || '').trim().toUpperCase();
+  const list = readDiscounts();
+  const d = list.find((x) => String(x.code).toUpperCase() === c);
+  if (!d) return;
+  d.uses = (d.uses || 0) + 1;
+  writeDiscounts(list);
+}
 
 function sanitizeName(name) {
   return (path.basename(name || 'file').replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 120)) || 'file';
@@ -436,6 +446,7 @@ function handleOrder(req, res) {
       files,
     };
     const list = readOrders(); list.push(order); writeOrders(list);
+    if (disc) incrementDiscountUsage(disc.code);
     notifyNewOrder(order);
     notifyCustomerOrder(order);
     sendJson(res, 200, { ok: true, orderId, fileCount: files.length, sizeTier: sz ? sz.tier : null, sizeLabel: sz ? sz.label : null, price: sz ? sz.price : null, pages: sz ? sz.pages : null });
@@ -815,7 +826,7 @@ function handleDiscountCheck(res, query) {
 function handleDiscountsList(req, res) {
   if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
   const now = Date.now();
-  const discounts = readDiscounts().map((d) => Object.assign({}, d, { expired: d.expiresAt ? new Date(d.expiresAt).getTime() < now : false }));
+  const discounts = readDiscounts().map((d) => Object.assign({}, d, { uses: d.uses || 0, expired: d.expiresAt ? new Date(d.expiresAt).getTime() < now : false }));
   sendJson(res, 200, { ok: true, discounts });
 }
 // Admin: add or update a code. `days` > 0 sets an expiry; 0/empty means no expiry.
@@ -831,7 +842,7 @@ async function handleDiscountSave(req, res) {
   const list = readDiscounts();
   const existing = list.find((x) => String(x.code).toUpperCase() === code);
   if (existing) { existing.code = code; existing.percent = percent; existing.expiresAt = expiresAt; }
-  else { list.push({ code, percent, expiresAt, createdAt: new Date().toISOString() }); }
+  else { list.push({ code, percent, expiresAt, createdAt: new Date().toISOString(), uses: 0 }); }
   writeDiscounts(list);
   sendJson(res, 200, { ok: true });
 }
