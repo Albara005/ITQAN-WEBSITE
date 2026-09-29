@@ -480,9 +480,11 @@
   </style>
   <script>
     // Always open at the home (hero) — ignore any #section in the entry URL and
-    // don't let the browser restore a previous scroll position.
+    // don't let the browser restore a previous scroll position. Exception: #request
+    // (used in ad/bio links) is remembered and jumped to once the page is ready.
     if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
     if (location.hash) {
+      if (location.hash === '#request') window.__entrySection = 'request';
       try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
     }
   </script>
@@ -858,6 +860,13 @@
             }, 350);
           }
         }
+        // Ad/bio links to /#request: skip the hero and land on the order form.
+        if (!pre && window.__entrySection) {
+          setTimeout(function () {
+            var target = document.getElementById(window.__entrySection);
+            if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
+          }, 350);
+        }
       })();
     </script>
 
@@ -1193,9 +1202,9 @@
       })();
       var qi = 0, inFlight = 0;
       // Fine passes only run once the hero is actually on screen: email deep-links
-      // (/?track=…) get scrolled straight past it and only pay for the coarse pass.
-      // Data-saver / 2G connections never go past the coarse pass.
-      var DEEP_LINK = /[?&]track=/.test(location.search);
+      // (/?track=…) and ad links (/#request) get scrolled straight past it and only
+      // pay for the coarse pass. Data-saver / 2G connections never go past the coarse pass.
+      var DEEP_LINK = /[?&]track=/.test(location.search) || !!window.__entrySection;
       var fineAllowed = false;
       var isReady = false;
 
