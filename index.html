@@ -1052,10 +1052,23 @@
       }
 
       /* ===================== SCROLL-DRIVEN FRAME SEQUENCE ENGINE ===================== */
-      // The video was pre-rendered into individual JPG frames (frames/frame_0001.jpg …).
-      // Scroll position picks which frame to paint onto the canvas — true frame-by-frame
-      // scrubbing with no video seeking, so it stays perfectly smooth.
-      var FRAME_COUNT = 612;
+      // The video was pre-rendered into WebP frames. Scroll position picks which frame
+      // to paint onto the canvas — true frame-by-frame scrubbing with no video seeking.
+      // Three tiers, picked once at load:
+      //   p — portrait phones: 306 frames, centre crop 618×1100 (≈ 6 MB). The landscape
+      //       frames would be cropped and blown up ~3× on a tall screen and look soft.
+      //   m — landscape phones: 306 frames @960×534 (≈ 5 MB).
+      //   d — tablets/desktops: 612 frames @1920×1068 (≈ 26 MB).
+      // Phones never get d, whichever way they're held. Some in-app webviews report a
+      // 0×0 screen, so fall back to the viewport (and to a phone tier if both are unknown).
+      var PHONE = Math.min(screen.width || window.innerWidth, screen.height || window.innerHeight) <= 600;
+      var TIER = !PHONE ? { dir: 'd', w: 1920, h: 1068 }
+        : window.innerHeight >= window.innerWidth ? { dir: 'p', w: 618, h: 1100 }
+        : { dir: 'm', w: 960, h: 534 };
+      var FRAME_COUNT = PHONE ? 306 : 612;
+      var FRAME_DIR = 'frames/v2/' + TIER.dir + '/';
+      var conn = navigator.connection || {};
+      var LITE = !!conn.saveData || /(^|-)2g$/.test(conn.effectiveType || '');
       var canvas = el('seq');
       var ctx = canvas.getContext('2d');
       var loader = el('loader');
@@ -1066,6 +1079,7 @@
       var blocks = document.querySelectorAll('.cine-block');
 
       var images = new Array(FRAME_COUNT);
+      var loaded = new Uint8Array(FRAME_COUNT);
       var loadedCount = 0;
       var introScroll = 1;
       var lastFrame = -1;
@@ -1076,12 +1090,17 @@
       function hideLoader() { if (loaderHidden) return; loaderHidden = true; loader.classList.add('hidden'); }
       function computeIntro() { introScroll = Math.max(1, stage.offsetHeight - window.innerHeight); }
       function pad4(n) { n = String(n); while (n.length < 4) n = '0' + n; return n; }
-      function framePath(i) { return 'frames/frame_' + pad4(i) + '.jpg'; }
+      function framePath(i) { return FRAME_DIR + pad4(i) + '.webp'; }
       function scrollFraction() { return clamp(window.scrollY / introScroll, 0, 1); }
       function frameForFraction(frac) { return Math.round(frac * (FRAME_COUNT - 1)); }
 
       function resizeCanvas() {
         dpr = Math.min(window.devicePixelRatio || 1, 2);
+        // Never allocate more canvas pixels than the frames have: cover-fit would only
+        // upscale them, and letting CSS scale a smaller canvas looks the same while
+        // costing far less GPU fill and memory on every scroll step (up to ~4× on retina).
+        var cover = Math.max(window.innerWidth * dpr / TIER.w, window.innerHeight * dpr / TIER.h);
+        if (cover > 1) dpr /= cover;
         canvas.width = Math.floor(window.innerWidth * dpr);
         canvas.height = Math.floor(window.innerHeight * dpr);
         lastFrame = -1; // force redraw at new size
@@ -1097,13 +1116,22 @@
         ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
       }
 
-      function drawFrame(idx) {
-        if (idx === lastFrame) return;
-        var img = images[idx];
-        if (img && img.complete && img.naturalWidth) {
-          drawCover(img);
-          lastFrame = idx;
+      // Frames stream in coarse-to-fine, so the exact frame may not be here yet —
+      // paint the closest one that is, and repaint when a closer one arrives.
+      function nearestLoaded(idx) {
+        if (loaded[idx]) return idx;
+        for (var d = 1; d < FRAME_COUNT; d++) {
+          if (idx - d >= 0 && loaded[idx - d]) return idx - d;
+          if (idx + d < FRAME_COUNT && loaded[idx + d]) return idx + d;
         }
+        return -1;
+      }
+
+      function drawFrame(idx) {
+        var n = nearestLoaded(idx);
+        if (n < 0 || n === lastFrame) return;
+        drawCover(images[n]);
+        lastFrame = n;
       }
 
       function paintBlocks(frac) {
@@ -1148,39 +1176,76 @@
         }
       }
 
-      // Show the site as soon as a small batch of opening frames is ready; the rest
-      // keep streaming in the background. This makes the initial load feel near-instant
-      // instead of waiting for all 612 frames (≈113 MB) to download.
-      var READY_FRAMES = Math.min(30, FRAME_COUNT);
+      // Load order: a coarse pass first (every 16th frame) so the whole scroll range has
+      // something to show after a few dozen small requests, then finer passes fill the
+      // gaps. At most MAX_PARALLEL requests run at once so the frames never starve the
+      // rest of the page (fonts, API calls, portfolio images).
+      var COARSE_STEP = 16;
+      var MAX_PARALLEL = 6;
+      var coarseCount = Math.ceil(FRAME_COUNT / COARSE_STEP);
+      var READY_FRAMES = Math.min(10, coarseCount);
+      var queue = (function () {
+        var order = [], seen = new Uint8Array(FRAME_COUNT);
+        [COARSE_STEP, 8, 4, 2, 1].forEach(function (step) {
+          for (var i = 0; i < FRAME_COUNT; i += step) if (!seen[i]) { seen[i] = 1; order.push(i); }
+        });
+        return order;
+      })();
+      var qi = 0, inFlight = 0;
+      // Fine passes only run once the hero is actually on screen: email deep-links
+      // (/?track=…) get scrolled straight past it and only pay for the coarse pass.
+      // Data-saver / 2G connections never go past the coarse pass.
+      var DEEP_LINK = /[?&]track=/.test(location.search);
+      var fineAllowed = false;
       var isReady = false;
 
       function onReady() {
         if (isReady) return;
         isReady = true;
         resizeCanvas();
-        if (!images[0] || !images[0].naturalWidth) {
-          document.body.classList.add('video-failed'); // frames missing → gradient fallback
-        }
+        if (!loaded[0]) document.body.classList.add('video-failed'); // frames missing → gradient fallback
         hideLoader();
       }
 
-      function preloadFrames() {
-        for (var i = 1; i <= FRAME_COUNT; i++) {
-          (function (i) {
-            var img = new Image();
-            img.onload = img.onerror = function () {
-              loadedCount++;
-              // Progress bar fills toward the "ready" batch so it reaches 100% fast.
-              var pct = Math.min(100, Math.round((loadedCount / READY_FRAMES) * 100));
-              if (loaderFill) loaderFill.style.width = pct + '%';
-              if (loaderPct) loaderPct.textContent = pct + '%';
-              // Draw the first frame as soon as it lands so the hero isn't blank.
-              if (i === 1) { resizeCanvas(); }
-              if (loadedCount >= READY_FRAMES) onReady();
-            };
-            img.src = framePath(i);
-            images[i - 1] = img;
-          })(i);
+      function heroOnScreen() { return window.scrollY < introScroll + window.innerHeight; }
+
+      function maybeAllowFine() {
+        if (fineAllowed || LITE || !heroOnScreen()) return;
+        fineAllowed = true;
+        pump();
+      }
+
+      function loadFrame(idx) {
+        inFlight++;
+        var img = new Image();
+        img.decoding = 'async';
+        function done() {
+          inFlight--;
+          loadedCount++;
+          if (img.naturalWidth) {
+            loaded[idx] = 1;
+            if (idx === 0) document.body.classList.remove('video-failed');
+            drawFrame(frameForFraction(scrollFraction()));
+          }
+          var pct = Math.min(100, Math.round((loadedCount / READY_FRAMES) * 100));
+          if (loaderFill) loaderFill.style.width = pct + '%';
+          if (loaderPct) loaderPct.textContent = pct + '%';
+          if (loaded[0] && loadedCount >= READY_FRAMES) onReady();
+          pump();
+        }
+        // onload (not decode()) drives completion — decode() stalls while the tab is
+        // hidden. decode() is still kicked off as a hint so frames decode off the main
+        // thread before they're first painted.
+        img.onload = function () { if (img.decode) img.decode().catch(function () {}); done(); };
+        img.onerror = done;
+        img.src = framePath(idx + 1);
+        images[idx] = img;
+      }
+
+      function pump() {
+        while (inFlight < MAX_PARALLEL && qi < queue.length) {
+          if (qi >= coarseCount && !fineAllowed) return;
+          loadFrame(queue[qi++]);
         }
       }
 
@@ -1188,8 +1253,9 @@
       // input, not autonomous motion), so it runs even under prefers-reduced-motion.
       computeIntro();
       resizeCanvas();
-      preloadFrames();
-      window.addEventListener('scroll', onScroll, { passive: true });
+      if (!DEEP_LINK) maybeAllowFine();
+      pump();
+      window.addEventListener('scroll', function () { maybeAllowFine(); onScroll(); }, { passive: true });
       window.addEventListener('resize', function () { computeIntro(); resizeCanvas(); });
       // Safety net: never let the loader trap the user on a slow connection.
       setTimeout(onReady, 9000);

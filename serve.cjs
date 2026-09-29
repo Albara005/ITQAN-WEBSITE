@@ -979,6 +979,9 @@ function serveStatic(req, res, urlPath) {
       const headers = { 'Content-Length': stat.size, 'Content-Type': type, 'Accept-Ranges': 'bytes' };
       // HTML must always be revalidated so dashboard/site updates show without a hard refresh.
       if (ext === '.html') headers['Cache-Control'] = 'no-cache, must-revalidate';
+      // Hero frames are versioned by folder (frames/v2/…) and never change in place, so
+      // returning visitors can reuse them for a year. Re-encode into a new vN folder to update.
+      else if (urlPath.startsWith('/frames/v')) headers['Cache-Control'] = 'public, max-age=31536000, immutable';
       res.writeHead(200, headers);
       fs.createReadStream(filePath).pipe(res);
     }
