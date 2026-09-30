@@ -253,6 +253,10 @@
     .field input:focus, .field textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
     .field textarea { resize: vertical; min-height: 110px; }
     .field input.invalid { border-color: rgba(248,113,113,.7); }
+    /* iOS Safari: the native date input has an intrinsic min-width that overflows the card,
+       and under RTL its "29 Sep 2026" gets bidi-reordered to "Sep 2026 29". */
+    .field input[type="date"] { -webkit-appearance: none; appearance: none; display: block; min-width: 0; max-width: 100%; min-height: 48px; direction: ltr; text-align: center; }
+    .field input[type="date"]::-webkit-date-and-time-value { text-align: center; }
     .field .err { margin-top: 6px; font-size: .85rem; color: #f87171; min-height: 1.1em; }
     .segmented { display: flex; gap: 8px; border-radius: 12px; border: 1px solid rgba(255,255,255,.15); background: rgba(10,14,23,.6); padding: 6px; }
     .segmented button { flex: 1; border-radius: 9px; padding: 9px 0; font-weight: 700; font-size: .9rem; color: rgba(255,255,255,.7); transition: all .2s; }
@@ -847,26 +851,52 @@
             .then(function (res) { if (res.ok && res.j.ok) { render(res.j.order); } else { msg(esc((res.j && res.j.error) || 'تعذّر جلب الحالة.'), '#f0a1a1'); } })
             .catch(function () { msg('تعذّر الاتصال. حاول مرة أخرى.', '#f0a1a1'); });
         });
-        // Deep-link from the confirmation email: /?track=1001 → auto-fill, search, and scroll here.
+        // Jump straight to a section on entry and keep it pinned to the top while the page
+        // is still settling (fonts, images, work samples, the track result all change the
+        // height of what's above it — on a slow phone that used to leave visitors short of
+        // the section). Instant, not smooth: a smooth scroll through the 800vh hero is slow,
+        // gets cut short on iOS, and makes the hero load every frame on the way. Stops as
+        // soon as the visitor touches/scrolls themselves, or after 6s.
+        function landOn(id) {
+          // This script runs mid-parse; #request (and the rest of the page) comes later.
+          if (document.readyState === 'loading') {
+            return document.addEventListener('DOMContentLoaded', function () { landOn(id); });
+          }
+          var target = document.getElementById(id);
+          if (!target) return;
+          var html = document.documentElement, done = false, pinned = null;
+          function align() {
+            if (done) return;
+            var prev = html.style.scrollBehavior;
+            html.style.scrollBehavior = 'auto';
+            target.scrollIntoView({ block: 'start' });
+            html.style.scrollBehavior = prev;
+            pinned = target.getBoundingClientRect().top;
+          }
+          // Re-pin only when the section actually moved (iOS Safari has no scroll anchoring).
+          var timer = setInterval(function () {
+            if (Math.abs(target.getBoundingClientRect().top - pinned) > 1) align();
+          }, 150);
+          function stop() { done = true; clearInterval(timer); }
+          ['touchstart', 'wheel', 'keydown', 'mousedown'].forEach(function (ev) {
+            window.addEventListener(ev, stop, { once: true, passive: true });
+          });
+          window.addEventListener('load', align);
+          align();
+          setTimeout(stop, 6000);
+        }
+        // Deep-link from the confirmation email/WhatsApp: /?track=1001-A7X → auto-fill, search, and land here.
         var pre = new URLSearchParams(window.location.search).get('track');
         if (pre) {
           var digits = pre.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
           if (digits) {
             input.value = digits;
-            setTimeout(function () {
-              form.dispatchEvent(new Event('submit', { cancelable: true }));
-              var sec = document.getElementById('track');
-              if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 350);
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+            landOn('track');
           }
         }
         // Ad/bio links to /#request: skip the hero and land on the order form.
-        if (!pre && window.__entrySection) {
-          setTimeout(function () {
-            var target = document.getElementById(window.__entrySection);
-            if (target) target.scrollIntoView({ behavior: 'auto', block: 'start' });
-          }, 350);
-        }
+        if (!pre && window.__entrySection) landOn(window.__entrySection);
       })();
     </script>
 

@@ -794,7 +794,7 @@ async function handleClearOrders(req, res) {
   const before = readOrders().length;
   try {
     for (const e of fs.readdirSync(ORDERS_DIR, { withFileTypes: true })) {
-      if (e.isDirectory() && /^\d+$/.test(e.name)) {
+      if (e.isDirectory() && /^\d+(-[A-Z0-9]+)?$/.test(e.name)) {
         fs.rmSync(path.join(ORDERS_DIR, e.name), { recursive: true, force: true });
       }
     }
@@ -857,9 +857,9 @@ async function handleDiscountDelete(req, res) {
 
 function handleFile(req, res, query) {
   if (!isAuthed(req)) { res.writeHead(401); return res.end('Unauthorized'); }
-  const id = query.get('id') || '';
+  const id = cleanOrderId(query.get('id'));
   const name = query.get('name') || '';
-  if (!/^\d{3,}$/.test(id) || !/^[a-f0-9]{8}\.[a-z0-9]+$/i.test(name)) {
+  if (!/^\d{3,}(-[A-Z0-9]+)?$/.test(id) || !/^[a-f0-9]{8}\.[a-z0-9]+$/i.test(name)) {
     res.writeHead(400); return res.end('Bad request');
   }
   const list = readOrders();
