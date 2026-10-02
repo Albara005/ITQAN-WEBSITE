@@ -343,6 +343,71 @@ if (!fs.existsSync(SETTINGS_DB)) fs.writeFileSync(SETTINGS_DB, JSON.stringify(SE
 function readSettings() { try { return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(fs.readFileSync(SETTINGS_DB, 'utf8'))); } catch { return Object.assign({}, SETTINGS_DEFAULTS); } }
 function writeSettings(s) { fs.writeFileSync(SETTINGS_DB, JSON.stringify(s, null, 2), 'utf8'); }
 
+// ---- site visits (shown in the dashboard) ----
+// Counts real loads of the home page only. No cookies and no stored IPs: a visitor is a
+// salted hash of IP + user agent, and the salt (plus the day's hashes) is thrown away at
+// Oman midnight, so a "unique visitor" means unique within one day.
+const VISITS_DB = path.join(DATA_DIR, 'visits.json');
+const BOT_UA = /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|discord|curl|wget|python|headless|lighthouse/i;
+let visits = (() => { try { return JSON.parse(fs.readFileSync(VISITS_DB, 'utf8')); } catch { return {}; } })();
+if (!visits.days) visits.days = {};
+let visitsDirty = false;
+function omanDay(t) { return new Date((t || Date.now()) + 4 * 3600e3).toISOString().slice(0, 10); }
+function visitSource(req, params) {
+  const s = ((params.get('utm_source') || params.get('ref') || '') + ' ' + (req.headers.referer || '')).toLowerCase();
+  if (/instagram/.test(s)) return 'instagram';
+  if (/tiktok/.test(s)) return 'tiktok';
+  if (/whatsapp|wa\.me/.test(s)) return 'whatsapp';
+  if (/snapchat/.test(s)) return 'snapchat';
+  if (/facebook|fb\.com/.test(s)) return 'meta';
+  if (/google|bing|yahoo|duckduckgo/.test(s)) return 'search';
+  if (/t\.co\b|twitter|x\.com/.test(s)) return 'x';
+  if (params.has('fbclid')) return 'meta'; // Instagram/Facebook ads & in-app browser
+  if (params.has('track')) return 'tracking'; // order-tracking links from our own emails
+  if (/^https?:/.test(String(req.headers.referer || '')) && !/itqanoman\.co|localhost/.test(s)) return 'other';
+  return 'direct';
+}
+function recordVisit(req, params) {
+  const ua = String(req.headers['user-agent'] || '');
+  if (!ua || BOT_UA.test(ua) || req.headers['sec-purpose'] || req.headers.purpose === 'prefetch') return;
+  const day = omanDay();
+  if (visits.saltDay !== day) {
+    visits.saltDay = day;
+    visits.salt = crypto.randomBytes(16).toString('hex');
+    Object.values(visits.days).forEach((d) => { delete d.seen; });
+  }
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+  const id = crypto.createHash('sha256').update(visits.salt + '|' + ip + '|' + ua).digest('hex').slice(0, 16);
+  const d = visits.days[day] || (visits.days[day] = { views: 0, uniques: 0, sources: {} });
+  if (!d.seen) d.seen = [];
+  d.views++;
+  if (!d.seen.includes(id)) {
+    d.seen.push(id); d.uniques++;
+    const src = visitSource(req, params);
+    d.sources[src] = (d.sources[src] || 0) + 1;
+  }
+  visitsDirty = true;
+}
+function flushVisits() { if (!visitsDirty) return; visitsDirty = false; try { fs.writeFileSync(VISITS_DB, JSON.stringify(visits), 'utf8'); } catch {} }
+setInterval(flushVisits, 5000).unref();
+process.on('SIGTERM', () => { flushVisits(); process.exit(0); });
+// Admin: last 30 days of visits + sources + how many of those visitors ordered.
+function handleAnalytics(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const today = Date.now(), series = [];
+  for (let i = 29; i >= 0; i--) {
+    const day = omanDay(today - i * 86400e3), d = visits.days[day] || {};
+    series.push({ day, views: d.views || 0, uniques: d.uniques || 0 });
+  }
+  const sum = (arr, k) => arr.reduce((a, x) => a + x[k], 0);
+  const last7 = series.slice(-7), sources = {};
+  series.forEach((x) => { const s = (visits.days[x.day] || {}).sources || {}; Object.keys(s).forEach((k) => { sources[k] = (sources[k] || 0) + s[k]; }); });
+  const since = omanDay(today - 29 * 86400e3);
+  const orders30 = readOrders().filter((o) => o.createdAt && omanDay(new Date(o.createdAt).getTime()) >= since).length;
+  sendJson(res, 200, { ok: true, series, sources, orders30,
+    today: series[29], week: { views: sum(last7, 'views'), uniques: sum(last7, 'uniques') }, month: { views: sum(series, 'views'), uniques: sum(series, 'uniques') } });
+}
+
 // ---- discount codes (managed from the dashboard) ----
 const DISCOUNTS_DB = path.join(DATA_DIR, 'discounts.json');
 if (!fs.existsSync(DISCOUNTS_DB)) fs.writeFileSync(DISCOUNTS_DB, '[]', 'utf8');
@@ -822,12 +887,69 @@ function handleDiscountCheck(res, query) {
   if (!d) return sendJson(res, 404, { ok: false, error: 'كود غير صالح أو منتهي الصلاحية.' });
   sendJson(res, 200, { ok: true, code: d.code, percent: d.percent });
 }
-// Admin: list all codes (with an `expired` flag).
+// What the customer actually pays for an order: the admin-set final amount if there is
+// one, otherwise the automatic size price minus the discount. null = not priced yet.
+function orderPaidAmount(o) {
+  if (typeof o.finalPrice === 'number') return o.finalPrice;
+  if (typeof o.price !== 'number') return null;
+  const pct = o.discount ? Number(o.discount.percent) || 0 : 0;
+  return Math.round(o.price * (100 - pct)) / 100;
+}
+// Referral stats for one code: orders that used it, their total, and the owner's commission.
+function referralStats(d, orders) {
+  const used = orders.filter((o) => o.discount && String(o.discount.code).toUpperCase() === String(d.code).toUpperCase());
+  let sales = 0, unpriced = 0;
+  used.forEach((o) => { const a = orderPaidAmount(o); if (a === null) unpriced++; else sales += a; });
+  const rate = Number(d.commission) || 0;
+  const earned = Math.round(sales * rate * 10) / 1000; // OMR, 3 decimals
+  const paid = Number(d.commissionPaid) || 0;
+  // Payout rule (shown to partners): commission is transferred once at least
+  // REFERRAL_MIN_ORDERS orders are waiting since the last payout; below that it carries over.
+  const unpaidOrders = Math.max(0, used.length - (Number(d.paidOrders) || 0));
+  return { orders: used.length, orderIds: used.map((o) => o.id), sales: Math.round(sales * 1000) / 1000, unpriced, earned, paid,
+    due: Math.max(0, Math.round((earned - paid) * 1000) / 1000), unpaidOrders, minOrders: REFERRAL_MIN_ORDERS, eligible: unpaidOrders >= REFERRAL_MIN_ORDERS };
+}
+const REFERRAL_MIN_ORDERS = 3;
+// Admin: list all codes (with an `expired` flag and, for referral codes, commission stats).
 function handleDiscountsList(req, res) {
   if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
   const now = Date.now();
-  const discounts = readDiscounts().map((d) => Object.assign({}, d, { uses: d.uses || 0, expired: d.expiresAt ? new Date(d.expiresAt).getTime() < now : false }));
+  const orders = readOrders();
+  const discounts = readDiscounts().map((d) => Object.assign({}, d, {
+    uses: d.uses || 0,
+    expired: d.expiresAt ? new Date(d.expiresAt).getTime() < now : false,
+    referral: d.owner ? referralStats(d, orders) : null,
+  }));
   sendJson(res, 200, { ok: true, discounts });
+}
+// Admin: record that the owner of a referral code was paid everything currently due.
+async function handleDiscountPayout(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const body = await readBody(req);
+  const code = String(body.code || '').trim().toUpperCase();
+  const list = readDiscounts();
+  const d = list.find((x) => String(x.code).toUpperCase() === code);
+  if (!d || !d.owner) return sendJson(res, 404, { ok: false, error: 'كود الإحالة غير موجود.' });
+  const s = referralStats(d, readOrders());
+  d.commissionPaid = s.earned;
+  d.paidOrders = s.orders;
+  writeDiscounts(list);
+  sendJson(res, 200, { ok: true, paid: s.due });
+}
+// Admin: set the final amount the customer paid (needed for orders with no automatic price,
+// e.g. PowerPoint). Empty/negative clears it and falls back to the automatic price.
+async function handleOrderPrice(req, res) {
+  if (!isAuthed(req)) return sendJson(res, 401, { ok: false, error: 'غير مصرّح.' });
+  const body = await readBody(req);
+  const id = cleanOrderId(body.id);
+  const list = readOrders();
+  const o = list.find((x) => x.id === id);
+  if (!o) return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' });
+  const v = Number(body.amount);
+  if (body.amount === '' || body.amount == null || !(v >= 0)) delete o.finalPrice;
+  else o.finalPrice = Math.round(v * 1000) / 1000;
+  writeOrders(list);
+  sendJson(res, 200, { ok: true, finalPrice: o.finalPrice ?? null });
 }
 // Admin: add or update a code. `days` > 0 sets an expiry; 0/empty means no expiry.
 async function handleDiscountSave(req, res) {
@@ -839,10 +961,14 @@ async function handleDiscountSave(req, res) {
   if (!/^[A-Z0-9_-]{2,32}$/.test(code)) return sendJson(res, 400, { ok: false, error: 'كود غير صالح (حروف/أرقام إنجليزية فقط، 2-32 خانة).' });
   if (!(percent >= 1 && percent <= 100)) return sendJson(res, 400, { ok: false, error: 'النسبة يجب أن تكون بين 1 و100.' });
   const expiresAt = (days && days > 0) ? new Date(Date.now() + days * 86400000).toISOString() : null;
+  // Optional referral owner: a customer who earns `commission`% of every order made with this code.
+  const owner = String(body.owner || '').trim().slice(0, 60);
+  const ownerContact = String(body.ownerContact || '').replace(/[^0-9]/g, '').slice(0, 15);
+  const commission = owner ? Math.min(50, Math.max(0, Math.round(Number(body.commission) || 0))) : 0;
   const list = readDiscounts();
   const existing = list.find((x) => String(x.code).toUpperCase() === code);
-  if (existing) { existing.code = code; existing.percent = percent; existing.expiresAt = expiresAt; }
-  else { list.push({ code, percent, expiresAt, createdAt: new Date().toISOString(), uses: 0 }); }
+  if (existing) { Object.assign(existing, { code, percent, expiresAt, owner, ownerContact, commission }); }
+  else { list.push({ code, percent, expiresAt, owner, ownerContact, commission, commissionPaid: 0, createdAt: new Date().toISOString(), uses: 0 }); }
   writeDiscounts(list);
   sendJson(res, 200, { ok: true });
 }
@@ -952,7 +1078,7 @@ function handleWorkImageFile(res, urlPath) {
 
 // ---------- static ----------
 // Files/folders that must NEVER be served (secrets, VCS, local config, runtime data).
-const STATIC_DENY = new Set(['admin-config.json', 'admin-config.example.json', 'work.json', 'settings.json', 'discounts.json', 'package.json', 'package-lock.json', 'serve.cjs']);
+const STATIC_DENY = new Set(['admin-config.json', 'admin-config.example.json', 'work.json', 'settings.json', 'discounts.json', 'visits.json', 'package.json', 'package-lock.json', 'serve.cjs']);
 function serveStatic(req, res, urlPath) {
   if (urlPath === '/') urlPath = '/index.html';
   if (urlPath === '/admin' || urlPath === '/admin/') urlPath = '/admin.html';
@@ -1014,6 +1140,8 @@ http.createServer(async (req, res) => {
   if (req.method === 'GET' && urlPath === '/api/discounts') return handleDiscountsList(req, res);
   if (req.method === 'POST' && urlPath === '/api/discounts/save') return handleDiscountSave(req, res);
   if (req.method === 'POST' && urlPath === '/api/discounts/delete') return handleDiscountDelete(req, res);
+  if (req.method === 'POST' && urlPath === '/api/discounts/payout') return handleDiscountPayout(req, res);
+  if (req.method === 'POST' && urlPath === '/api/order/price') return handleOrderPrice(req, res);
   if (req.method === 'GET' && urlPath === '/api/order/file') return handleFile(req, res, parsed.searchParams);
   if (req.method === 'GET' && urlPath === '/api/work') return handleWorkList(res);
   if (req.method === 'POST' && urlPath === '/api/work/save') return handleWorkSave(req, res);
@@ -1028,6 +1156,9 @@ http.createServer(async (req, res) => {
     const s = readSettings(); s.whatsapp = digits; writeSettings(s);
     return sendJson(res, 200, { ok: true, settings: s });
   }
+
+  if (req.method === 'GET' && urlPath === '/api/analytics') return handleAnalytics(req, res);
+  if (req.method === 'GET' && (urlPath === '/' || urlPath === '/index.html')) recordVisit(req, parsed.searchParams);
 
   return serveStatic(req, res, urlPath);
 }).listen(PORT, () => {

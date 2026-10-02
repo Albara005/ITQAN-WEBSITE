@@ -168,6 +168,21 @@
 
     <main class="shell">
       <div class="stats" id="stats"></div>
+
+      <!-- SITE VISITS -->
+      <div class="panel" style="margin-bottom:22px;">
+        <div class="panel-head"><h3>زيارات الموقع</h3><span class="muted" style="font-size:.8rem;">آخر 30 يوم · زائر = شخص مختلف في اليوم</span></div>
+        <div style="padding:18px 20px;">
+          <div class="stats" id="vStats" style="margin:0 0 18px;"></div>
+          <div id="vChart" style="display:flex;align-items:flex-end;gap:4px;height:150px;direction:ltr;padding:0 2px;border-bottom:1px solid rgba(255,255,255,.12);"></div>
+          <div style="display:flex;justify-content:space-between;direction:ltr;font-size:.72rem;color:var(--muted);margin-top:6px;" id="vAxis"></div>
+          <div style="margin-top:18px;">
+            <div class="muted" style="font-size:.85rem;margin-bottom:10px;">من وين جوا الزوار (آخر 30 يوم)</div>
+            <div id="vSources" style="display:grid;gap:8px;"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="panel-head"><h3>الطلبات</h3><span class="muted" id="ordersCount"></span></div>
         <div class="table-scroll">
@@ -225,7 +240,22 @@
             </div>
             <button class="btn btn-gold" id="dcAddBtn">إضافة الكود</button>
           </div>
-          <p class="muted" style="font-size:.8rem;margin-bottom:14px;">المدة بالأيام من تاريخ الإضافة. اتركها فارغة أو 0 لكود بدون تاريخ انتهاء. (إعادة استخدام نفس الكود تُحدّث نسبته ومدته.)</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;padding:12px;border:1px dashed rgba(201,168,76,.35);border-radius:12px;">
+            <div style="width:100%;color:var(--gold);font-weight:800;font-size:.85rem;">كود إحالة (اختياري) — لعميل يأخذ عمولة على كل طلب بكوده</div>
+            <div style="flex:1;min-width:140px;">
+              <label style="display:block;color:var(--muted);font-size:.8rem;margin-bottom:6px;">صاحب الكود</label>
+              <input id="dcOwner" type="text" placeholder="اسم العميل" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:11px 14px;color:#fff;font-family:inherit;font-size:1rem;outline:none;" />
+            </div>
+            <div style="flex:1;min-width:140px;">
+              <label style="display:block;color:var(--muted);font-size:.8rem;margin-bottom:6px;">واتساب صاحب الكود</label>
+              <input id="dcOwnerWa" type="text" dir="ltr" placeholder="96891234567" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:11px 14px;color:#fff;font-family:inherit;font-size:1rem;outline:none;text-align:left;" />
+            </div>
+            <div style="width:110px;">
+              <label style="display:block;color:var(--muted);font-size:.8rem;margin-bottom:6px;">عمولته %</label>
+              <input id="dcCommission" type="number" min="0" max="50" placeholder="10" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:11px 14px;color:#fff;font-family:inherit;font-size:1rem;outline:none;" />
+            </div>
+          </div>
+          <p class="muted" style="font-size:.8rem;margin-bottom:14px;">المدة بالأيام من تاريخ الإضافة. اتركها فارغة أو 0 لكود بدون تاريخ انتهاء. (إعادة استخدام نفس الكود تُحدّث بياناته.) العمولة تُحسب من المبلغ الفعلي لكل طلب استخدم الكود.</p>
           <div id="dcList" style="display:grid;gap:10px;"></div>
         </div>
       </div>
@@ -288,7 +318,38 @@
       function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
 
       // ---- login ----
-      function showDash(){ el('loginView').classList.add('hidden'); el('dashView').classList.remove('hidden'); loadOrders(); loadWork(); loadSettings(); loadDiscounts(); }
+      function showDash(){ el('loginView').classList.add('hidden'); el('dashView').classList.remove('hidden'); loadOrders(); loadWork(); loadSettings(); loadDiscounts(); loadAnalytics(); }
+
+      // ---- site visits ----
+      var SOURCE_LABEL = { instagram:'إنستقرام', meta:'إعلانات / إنستقرام وفيسبوك', tiktok:'تيك توك', whatsapp:'واتساب', snapchat:'سناب شات', search:'بحث (قوقل وغيره)', x:'إكس (تويتر)', tracking:'روابط تتبّع الطلب', other:'مواقع ثانية', direct:'مباشر / رابط بدون مصدر' };
+      function loadAnalytics(){
+        api('/api/analytics').then(function(r){ return r && r.json(); }).then(function(j){
+          if(!j || !j.ok) return;
+          var conv = j.month.uniques ? (Math.round(j.orders30 / j.month.uniques * 1000) / 10) : 0;
+          el('vStats').innerHTML =
+            '<div class="stat"><div class="n">'+j.today.uniques+'</div><div class="l">زوار اليوم ('+j.today.views+' مشاهدة)</div></div>'+
+            '<div class="stat"><div class="n">'+j.week.uniques+'</div><div class="l">زوار آخر 7 أيام</div></div>'+
+            '<div class="stat"><div class="n">'+j.month.uniques+'</div><div class="l">زوار آخر 30 يوم</div></div>'+
+            '<div class="stat"><div class="n">'+conv+'%</div><div class="l">نسبة الطلب ('+j.orders30+' طلب ÷ الزوار)</div></div>';
+          var max = Math.max(1, Math.max.apply(null, j.series.map(function(x){ return x.views; })));
+          el('vChart').innerHTML = j.series.map(function(x){
+            var hv = Math.round(x.views / max * 140), hu = Math.round(x.uniques / max * 140);
+            return '<div title="'+x.day+' · '+x.uniques+' زائر · '+x.views+' مشاهدة" style="flex:1;position:relative;height:'+Math.max(hv,2)+'px;background:rgba(201,168,76,.22);border-radius:4px 4px 0 0;">'+
+              '<div style="position:absolute;bottom:0;left:0;right:0;height:'+hu+'px;background:linear-gradient(180deg,#e8cd82,#a9802e);border-radius:4px 4px 0 0;"></div></div>';
+          }).join('');
+          var s = j.series;
+          el('vAxis').innerHTML = '<span>'+s[0].day.slice(5)+'</span><span>'+s[15].day.slice(5)+'</span><span>اليوم</span>';
+          var src = Object.keys(j.sources).map(function(k){ return [k, j.sources[k]]; }).sort(function(a,b){ return b[1]-a[1]; });
+          var tot = src.reduce(function(a,x){ return a + x[1]; }, 0);
+          el('vSources').innerHTML = !src.length ? '<div class="muted">ما فيه زيارات مسجّلة إلى الحين.</div>' : src.map(function(x){
+            var pct = Math.round(x[1] / tot * 100);
+            return '<div style="display:flex;align-items:center;gap:10px;font-size:.88rem;">'+
+              '<span style="width:190px;flex:0 0 190px;">'+(SOURCE_LABEL[x[0]]||esc(x[0]))+'</span>'+
+              '<span style="flex:1;height:10px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden;"><span style="display:block;height:100%;width:'+pct+'%;background:linear-gradient(90deg,#a9802e,#e8cd82);"></span></span>'+
+              '<span style="width:80px;text-align:left;" class="muted">'+x[1]+' · '+pct+'%</span></div>';
+          }).join('');
+        }).catch(function(){});
+      }
       function doLogin(){
         var email = (el('emailInput').value || '').trim().toLowerCase();
         var key = el('keyInput').value;
@@ -312,7 +373,7 @@
       el('emailInput').addEventListener('keydown', function(e){ if(e.key==='Enter') el('keyInput').focus(); });
       el('keyInput').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
       el('logoutBtn').addEventListener('click', function(){ localStorage.removeItem(KEY_STORE); location.reload(); });
-      el('refreshBtn').addEventListener('click', loadOrders);
+      el('refreshBtn').addEventListener('click', function(){ loadOrders(); loadAnalytics(); });
 
       // ---- orders ----
       function loadOrders(){
@@ -419,6 +480,13 @@
             '<div class="d-row"><span class="k">السعر</span><span class="v" style="color:#6ee7b7;font-weight:800;">'+esc(o.price)+' ر.ع</span></div>'+
             (o.sizePages? '<div class="d-row"><span class="k">حجم المادة</span><span class="v">~'+esc(o.sizePages)+' صفحة</span></div>' : '')+
           '</div>' : '')+
+          '<div class="d-section"><h4>المبلغ النهائي</h4>'+
+            '<div style="display:flex;gap:8px;align-items:center;">'+
+              '<input id="finalPriceIn" type="number" min="0" step="0.1" value="'+(typeof o.finalPrice==='number'?o.finalPrice:'')+'" placeholder="'+(typeof o.price==='number'?('تلقائي: '+(Math.round(o.price*(100-(o.discount?o.discount.percent:0)))/100)):'غير محدد')+'" style="flex:1;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:10px 12px;color:#fff;font-family:inherit;font-size:1rem;outline:none;" />'+
+              '<span class="muted">ر.ع</span><button class="btn btn-gold" id="finalPriceBtn">حفظ</button>'+
+            '</div>'+
+            '<p class="muted" style="font-size:.76rem;margin-top:6px;">المبلغ اللي دفعه العميل فعلًا بعد الخصم. تُحسب منه عمولة صاحب كود الإحالة.</p>'+
+          '</div>'+
           (o.discount ? '<div class="d-section"><h4>كود الخصم المستخدم</h4>'+
             '<div class="d-row"><span class="k">الكود</span><span class="v" style="color:var(--gold);font-weight:800;font-family:monospace;letter-spacing:.5px;">'+esc(o.discount.code)+'</span></div>'+
             '<div class="d-row"><span class="k">النسبة</span><span class="v">'+esc(o.discount.percent)+'%</span></div>'+
@@ -442,6 +510,15 @@
             '<p class="muted" style="font-size:.78rem;margin-top:8px;">ارفع الملخص (PDF) أو البوربوينت (PPTX)، ثم «تسليم» فيصل العميل رابط تحميل آمن على بريده.</p>'+
           '</div>'+
           '<div class="d-section" style="margin-top:6px;"><button class="btn btn-ghost" id="delOrderBtn" style="width:100%;color:#f0a1a1;border-color:rgba(240,161,161,.35);">حذف الطلب نهائيًا</button></div>';
+
+        // final amount paid (drives referral commission)
+        el('finalPriceBtn').addEventListener('click', function(){
+          var v = el('finalPriceIn').value;
+          api('/api/order/price', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id:o.id, amount:v }) })
+            .then(function(r){ return r.json(); })
+            .then(function(j){ if(j.ok){ o.finalPrice = j.finalPrice===null?undefined:j.finalPrice; toast('تم حفظ المبلغ'); loadDiscounts(); } else { toast(j.error||'فشل الحفظ'); } })
+            .catch(function(){ toast('تعذّر الحفظ'); });
+        });
 
         // status change
         el('statusSel').addEventListener('change', function(){
@@ -632,17 +709,44 @@
       function renderDiscounts(list){
         var box = el('dcList');
         if(!list.length){ box.innerHTML = '<div class="muted" style="padding:6px;">لا توجد أكواد خصم بعد.</div>'; return; }
+        function omr(n){ return (Math.round((Number(n)||0)*1000)/1000) + ' ر.ع'; }
         box.innerHTML = list.map(function(d){
-          return '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(10,14,23,.5);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px 14px;'+(d.expired?'opacity:.5;':'')+'">'+
+          var r = d.referral, ref = '';
+          if(r){
+            ref = '<div style="width:100%;display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px;padding-top:10px;border-top:1px dashed rgba(255,255,255,.1);font-size:.85rem;">'+
+              '<span>👤 <b>'+esc(d.owner)+'</b>'+(d.ownerContact?' · <a href="https://wa.me/'+esc(d.ownerContact)+'" target="_blank" style="color:#6ee7b7;">واتساب</a>':'')+'</span>'+
+              '<span class="muted">· عمولة '+(d.commission||0)+'%</span>'+
+              '<span class="muted">· '+r.orders+' طلب · مبيعات '+omr(r.sales)+'</span>'+
+              (r.unpriced? '<span style="color:#f0b95a;">· '+r.unpriced+' طلب بدون مبلغ نهائي</span>' : '')+
+              '<span style="margin-inline-start:auto;color:'+(r.due>0?'#6ee7b7':'var(--muted)')+';font-weight:800;">المستحق له: '+omr(r.due)+'</span>'+
+              '<span class="badge" style="'+(r.eligible?'background:rgba(110,231,183,.15);color:#6ee7b7;border:1px solid rgba(110,231,183,.4);':'background:rgba(240,185,90,.12);color:#f0b95a;border:1px solid rgba(240,185,90,.35);')+'">'+
+                (r.eligible ? '✓ جاهز للتحويل ('+r.unpaidOrders+' طلبات)' : ('محفوظ · '+r.unpaidOrders+' من '+r.minOrders+' طلبات'))+'</span>'+
+              (r.due>0 && r.eligible? '<button class="btn btn-gold" data-pay="'+esc(d.code)+'" style="padding:6px 12px;font-size:.82rem;">سجّل كمدفوع</button>' : '')+
+              (r.paid>0? '<span class="muted" style="width:100%;font-size:.78rem;">دُفع له سابقًا: '+omr(r.paid)+(r.orderIds.length?' · الطلبات: '+r.orderIds.map(function(x){ return '<bdi dir="ltr">'+esc(x)+'</bdi>'; }).join('، '):'')+'</span>' : (r.orderIds.length?'<span class="muted" style="width:100%;font-size:.78rem;">الطلبات: '+r.orderIds.map(function(x){ return '<bdi dir="ltr">'+esc(x)+'</bdi>'; }).join('، ')+'</span>':''))+
+            '</div>';
+          }
+          return '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(10,14,23,.5);border:1px solid '+(r?'rgba(201,168,76,.35)':'rgba(255,255,255,.08)')+';border-radius:12px;padding:12px 14px;'+(d.expired?'opacity:.5;':'')+'">'+
             '<span style="font-weight:800;font-family:monospace;font-size:1.05rem;color:var(--gold);letter-spacing:.5px;">'+esc(d.code)+'</span>'+
             '<span class="badge s-ready">'+d.percent+'%</span>'+
+            (r? '<span class="badge" style="background:rgba(110,231,183,.12);color:#6ee7b7;border:1px solid rgba(110,231,183,.35);">إحالة</span>' : '')+
             '<span class="badge" style="background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.35);">استُخدم '+(d.uses||0)+' مرة</span>'+
             '<span class="muted" style="font-size:.82rem;">'+fmtExpiry(d)+'</span>'+
             '<button class="btn btn-ghost" data-code="'+esc(d.code)+'" style="margin-inline-start:auto;">حذف</button>'+
+            ref+
           '</div>';
         }).join('');
         Array.prototype.forEach.call(box.querySelectorAll('button[data-code]'), function(btn){
           btn.addEventListener('click', function(){ deleteDiscount(btn.getAttribute('data-code')); });
+        });
+        Array.prototype.forEach.call(box.querySelectorAll('button[data-pay]'), function(btn){
+          btn.addEventListener('click', function(){
+            var code = btn.getAttribute('data-pay');
+            if(!confirm('تأكيد: دفعت كامل العمولة المستحقة لصاحب الكود '+code+'؟')) return;
+            api('/api/discounts/payout', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code:code }) })
+              .then(function(r){ return r.json(); })
+              .then(function(j){ if(j.ok){ toast('تم تسجيل الدفع'); loadDiscounts(); } else { toast(j.error||'فشل التسجيل'); } })
+              .catch(function(){ toast('تعذّر التسجيل'); });
+          });
         });
       }
       function deleteDiscount(code){
@@ -657,9 +761,11 @@
         var days = parseInt(el('dcDays').value, 10); if(isNaN(days)) days = 0;
         if(!code){ toast('أدخل الكود'); return; }
         if(!(percent>=1 && percent<=100)){ toast('النسبة يجب أن تكون بين 1 و100'); return; }
-        api('/api/discounts/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code:code, percent:percent, days:days }) })
+        var owner = (el('dcOwner').value||'').trim();
+        var commission = parseInt(el('dcCommission').value, 10); if(isNaN(commission)) commission = owner ? 10 : 0;
+        api('/api/discounts/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code:code, percent:percent, days:days, owner:owner, ownerContact:el('dcOwnerWa').value, commission:commission }) })
           .then(function(r){ return r.json(); })
-          .then(function(j){ if(j.ok){ toast('تم حفظ الكود'); el('dcCode').value=''; el('dcPercent').value=''; el('dcDays').value=''; loadDiscounts(); } else { toast(j.error||'فشل الحفظ'); } })
+          .then(function(j){ if(j.ok){ toast('تم حفظ الكود'); ['dcCode','dcPercent','dcDays','dcOwner','dcOwnerWa','dcCommission'].forEach(function(k){ el(k).value=''; }); loadDiscounts(); } else { toast(j.error||'فشل الحفظ'); } })
           .catch(function(){ toast('تعذّر الحفظ'); });
       });
 

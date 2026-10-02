@@ -18,6 +18,7 @@ settings.json
 work.json
 work-images/
 discounts.json
+visits.json
 _mailtest.cjs
 
 # unused source videos (the site renders the hero from frames/ instead)
