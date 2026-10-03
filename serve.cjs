@@ -278,7 +278,7 @@ const SIZE_LABELS = { small: 'صغير', medium: 'متوسط', large: 'كبير'
 // Starting price for services that aren't priced by size (matches the prices on the site).
 const BASE_PRICES = { 'عرض PowerPoint': 2, 'عرض PowerPoint + نص تقديم': 3 };
 // PowerPoint presentation levels picked by the customer; "+ نص تقديم" adds 1 OMR.
-const PPT_LEVELS = { simple: { label: 'بسيط', price: 2 }, medium: { label: 'متوسط', price: 3 }, pro: { label: 'احترافي', price: 4 } };
+const PPT_LEVELS = { simple: { label: 'بسيط', price: 2 }, medium: { label: 'متوسط', price: 3 }, pro: { label: 'احترافي', price: 5 } };
 const PPT_SCRIPT_EXTRA = { 'عرض PowerPoint': 0, 'عرض PowerPoint + نص تقديم': 1 };
 function pptPrice(service, level) {
   if (!(service in PPT_SCRIPT_EXTRA) || !PPT_LEVELS[level]) return null;
