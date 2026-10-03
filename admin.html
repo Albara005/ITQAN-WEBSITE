@@ -188,7 +188,7 @@
         <div class="table-scroll">
           <table>
             <thead>
-              <tr><th>رقم الطلب</th><th>التاريخ</th><th>الخدمة</th><th>العميل</th><th>ملفات</th><th>الحالة</th></tr>
+              <tr><th>رقم الطلب</th><th>التاريخ</th><th>الخدمة</th><th>السعر</th><th>العميل</th><th>ملفات</th><th>الحالة</th></tr>
             </thead>
             <tbody id="ordersBody"></tbody>
           </table>
@@ -252,7 +252,7 @@
             </div>
             <div style="width:110px;">
               <label style="display:block;color:var(--muted);font-size:.8rem;margin-bottom:6px;">عمولته %</label>
-              <input id="dcCommission" type="number" min="0" max="50" placeholder="10" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:11px 14px;color:#fff;font-family:inherit;font-size:1rem;outline:none;" />
+              <input id="dcCommission" type="number" min="0" max="50" placeholder="= الخصم" style="width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:11px 14px;color:#fff;font-family:inherit;font-size:1rem;outline:none;" />
             </div>
           </div>
           <p class="muted" style="font-size:.8rem;margin-bottom:14px;">المدة بالأيام من تاريخ الإضافة. اتركها فارغة أو 0 لكود بدون تاريخ انتهاء. (إعادة استخدام نفس الكود تُحدّث بياناته.) العمولة تُحسب من المبلغ الفعلي لكل طلب استخدم الكود.</p>
@@ -306,6 +306,21 @@
 
       var STATUS_LABEL = { new:'جديد', in_progress:'قيد العمل', ready:'جاهز', delivered:'مُسلّم' };
       var SIZE_LABEL = { small:'صغير', medium:'متوسط', large:'كبير' };
+      // Same defaults as the server: starting price per service + known add-on prices.
+      var BASE_PRICES = { 'عرض PowerPoint':2, 'عرض PowerPoint + نص تقديم':3 };
+      var ADDON_PRICES = { 'أسئلة مراجعة':0.5 };
+      var PPT_LEVEL_LABEL = { simple:'بسيط', medium:'متوسط', pro:'احترافي' };
+      function orderBase(o){ return typeof o.price==='number' ? o.price : (BASE_PRICES[o.service]!=null ? BASE_PRICES[o.service] : null); }
+      function orderAddonPrice(o,a){ if(o.addonPrices) return o.addonPrices[a]!=null ? o.addonPrices[a] : null; return ADDON_PRICES[a]!=null ? ADDON_PRICES[a] : null; }
+      // What the customer pays: the saved final amount, else (base + add-ons) minus the discount.
+      function orderTotal(o){
+        if(typeof o.finalPrice==='number') return o.finalPrice;
+        var b = orderBase(o); if(b===null) return null;
+        var sum = b; (o.addons||[]).forEach(function(a){ var v=orderAddonPrice(o,a); if(v!==null) sum+=v; });
+        var pct = o.discount ? (Number(o.discount.percent)||0) : 0;
+        return Math.round(sum*(100-pct)*10)/1000;
+      }
+      function fmtOmr(v){ return (Math.round(v*1000)/1000)+' ر.ع'; }
       var orders = [];
 
       function api(path, opts){
@@ -397,6 +412,9 @@
           stat(by.ready + by.delivered,'جاهزة/مُسلّمة');
         el('ordersCount').textContent = orders.length + ' طلب';
       }
+      function priceRow(label, id, val){
+        return '<div class="d-row" style="align-items:center;"><span class="k">'+label+'</span><span class="v" style="display:flex;align-items:center;gap:6px;"><input id="'+id+'" type="number" min="0" step="0.1" value="'+(val===null||val===undefined?'':val)+'" placeholder="—" style="width:96px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:7px 10px;color:#fff;font-family:inherit;font-size:.95rem;outline:none;text-align:center;" /><span class="muted">ر.ع</span></span></div>';
+      }
       function stat(n,l){ return '<div class="stat"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>'; }
 
       function renderTable(){
@@ -407,6 +425,8 @@
             '<td class="oid">#'+esc(o.id)+'</td>'+
             '<td class="muted">'+fmtDate(o.createdAt)+'</td>'+
             '<td>'+esc(o.service)+'</td>'+
+            (function(){ var t=orderTotal(o); var pend=typeof o.finalPrice!=='number' && (o.addons||[]).some(function(a){ return orderAddonPrice(o,a)===null; });
+              return '<td style="color:#6ee7b7;font-weight:800;white-space:nowrap;">'+(t===null?'<span class="muted">—</span>':fmtOmr(t))+(pend?' <span style="color:#f0b95a;font-size:.75rem;font-weight:600;">+ إضافات</span>':'')+'</td>'; })()+
             '<td>'+esc(o.customer.name)+'</td>'+
             '<td>'+o.files.length+'</td>'+
             '<td><span class="badge s-'+o.status+'">'+STATUS_LABEL[o.status]+'</span></td>'+
@@ -469,23 +489,20 @@
         el('drawerBody').innerHTML =
           '<div class="d-section"><h4>الحالة</h4><select class="status-select" id="statusSel">'+statusOpts+'</select></div>'+
           '<div class="d-section"><h4>الخدمة</h4>'+
-            row('الخدمة', o.service) + row('المادة', o.subject||'—') +
+            row('الخدمة', o.service) + (o.pptLevel ? row('مستوى العرض', PPT_LEVEL_LABEL[o.pptLevel]||o.pptLevel) : '') + row('المادة', o.subject||'—') +
             row('الموعد النهائي', o.deadline||'غير محدد') +
             row('الإضافات', (o.addons&&o.addons.length)? o.addons.join('، ') : 'لا يوجد') +
             (o.notes? row('ملاحظات', o.notes) : '') +
             row('تاريخ الطلب', fmtDate(o.createdAt)) +
           '</div>'+
-          (o.sizeTier ? '<div class="d-section"><h4>حجم الطلب والسعر</h4>'+
-            '<div class="d-row"><span class="k">الحجم</span><span class="v" style="font-weight:800;">'+(SIZE_LABEL[o.sizeTier]||o.sizeTier)+'</span></div>'+
-            '<div class="d-row"><span class="k">السعر</span><span class="v" style="color:#6ee7b7;font-weight:800;">'+esc(o.price)+' ر.ع</span></div>'+
-            (o.sizePages? '<div class="d-row"><span class="k">حجم المادة</span><span class="v">~'+esc(o.sizePages)+' صفحة</span></div>' : '')+
-          '</div>' : '')+
-          '<div class="d-section"><h4>المبلغ النهائي</h4>'+
-            '<div style="display:flex;gap:8px;align-items:center;">'+
-              '<input id="finalPriceIn" type="number" min="0" step="0.1" value="'+(typeof o.finalPrice==='number'?o.finalPrice:'')+'" placeholder="'+(typeof o.price==='number'?('تلقائي: '+(Math.round(o.price*(100-(o.discount?o.discount.percent:0)))/100)):'غير محدد')+'" style="flex:1;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(10,14,23,.6);padding:10px 12px;color:#fff;font-family:inherit;font-size:1rem;outline:none;" />'+
-              '<span class="muted">ر.ع</span><button class="btn btn-gold" id="finalPriceBtn">حفظ</button>'+
-            '</div>'+
-            '<p class="muted" style="font-size:.76rem;margin-top:6px;">المبلغ اللي دفعه العميل فعلًا بعد الخصم. تُحسب منه عمولة صاحب كود الإحالة.</p>'+
+          '<div class="d-section"><h4>السعر</h4>'+
+            (o.sizeTier ? '<div class="d-row"><span class="k">حجم الطلب</span><span class="v">'+(SIZE_LABEL[o.sizeTier]||o.sizeTier)+(o.sizePages? ' · ~'+esc(o.sizePages)+' صفحة' : '')+'</span></div>' : '')+
+            priceRow('السعر الأساسي', 'pBase', orderBase(o))+
+            (o.addons||[]).map(function(a,i){ return priceRow('+ '+esc(a), 'pAdd'+i, orderAddonPrice(o,a)); }).join('')+
+            (o.discount ? '<div class="d-row"><span class="k">خصم '+esc(o.discount.code)+'</span><span class="v" style="color:#f0b95a;">−'+esc(o.discount.percent)+'%</span></div>' : '')+
+            '<div class="d-row" style="border-bottom:none;padding-top:12px;"><span class="k" style="color:#fff;font-weight:800;">الإجمالي</span><span class="v" id="pTotal" style="color:#6ee7b7;font-weight:900;font-size:1.15rem;"></span></div>'+
+            '<button class="btn btn-gold" id="finalPriceBtn" style="width:100%;margin-top:8px;">حفظ السعر</button>'+
+            '<p class="muted" style="font-size:.76rem;margin-top:6px;">اكتب سعر كل إضافة طلبها العميل، والإجمالي يتحسب بعد الخصم. منه تُحسب عمولة صاحب كود الإحالة.</p>'+
           '</div>'+
           (o.discount ? '<div class="d-section"><h4>كود الخصم المستخدم</h4>'+
             '<div class="d-row"><span class="k">الكود</span><span class="v" style="color:var(--gold);font-weight:800;font-family:monospace;letter-spacing:.5px;">'+esc(o.discount.code)+'</span></div>'+
@@ -512,11 +529,24 @@
           '<div class="d-section" style="margin-top:6px;"><button class="btn btn-ghost" id="delOrderBtn" style="width:100%;color:#f0a1a1;border-color:rgba(240,161,161,.35);">حذف الطلب نهائيًا</button></div>';
 
         // final amount paid (drives referral commission)
+        function readPrices(){
+          var ap = {}; (o.addons||[]).forEach(function(a,i){ var v=el('pAdd'+i).value; if(v!=='') ap[a]=Number(v); });
+          return { base: el('pBase').value, addonPrices: ap };
+        }
+        function updateTotal(){
+          var p = readPrices(); var b = p.base===''?null:Number(p.base);
+          if(b===null||isNaN(b)){ el('pTotal').textContent='—'; return; }
+          var sum=b; Object.keys(p.addonPrices).forEach(function(k){ sum+=p.addonPrices[k]||0; });
+          var pct = o.discount ? (Number(o.discount.percent)||0) : 0;
+          el('pTotal').textContent = fmtOmr(Math.round(sum*(100-pct)*10)/1000);
+        }
+        Array.prototype.forEach.call(el('drawerBody').querySelectorAll('#pBase,[id^="pAdd"]'), function(inp){ inp.addEventListener('input', updateTotal); });
+        updateTotal();
         el('finalPriceBtn').addEventListener('click', function(){
-          var v = el('finalPriceIn').value;
-          api('/api/order/price', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id:o.id, amount:v }) })
+          var p = readPrices();
+          api('/api/order/price', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ id:o.id, base:p.base, addonPrices:p.addonPrices }) })
             .then(function(r){ return r.json(); })
-            .then(function(j){ if(j.ok){ o.finalPrice = j.finalPrice===null?undefined:j.finalPrice; toast('تم حفظ المبلغ'); loadDiscounts(); } else { toast(j.error||'فشل الحفظ'); } })
+            .then(function(j){ if(j.ok){ o.finalPrice = j.finalPrice===null?undefined:j.finalPrice; o.price = j.price===null?undefined:j.price; o.addonPrices = j.addonPrices; toast('تم حفظ السعر'); renderTable(); loadDiscounts(); } else { toast(j.error||'فشل الحفظ'); } })
             .catch(function(){ toast('تعذّر الحفظ'); });
         });
 
@@ -762,7 +792,7 @@
         if(!code){ toast('أدخل الكود'); return; }
         if(!(percent>=1 && percent<=100)){ toast('النسبة يجب أن تكون بين 1 و100'); return; }
         var owner = (el('dcOwner').value||'').trim();
-        var commission = parseInt(el('dcCommission').value, 10); if(isNaN(commission)) commission = owner ? 10 : 0;
+        var commission = parseInt(el('dcCommission').value, 10); if(isNaN(commission)) commission = owner ? percent : 0; // default: commission = discount%
         api('/api/discounts/save', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code:code, percent:percent, days:days, owner:owner, ownerContact:el('dcOwnerWa').value, commission:commission }) })
           .then(function(r){ return r.json(); })
           .then(function(j){ if(j.ok){ toast('تم حفظ الكود'); ['dcCode','dcPercent','dcDays','dcOwner','dcOwnerWa','dcCommission'].forEach(function(k){ el(k).value=''; }); loadDiscounts(); } else { toast(j.error||'فشل الحفظ'); } })

@@ -293,6 +293,9 @@
     .err-block { display: block; min-height: 1.1em; margin-top: 10px; font-size: .85rem; color: #f87171; }
 
     .choice-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    .level-box { margin-bottom: 22px; }
+    .level-box .lv-label { display: block; font-weight: 700; color: #fff; margin-bottom: 10px; }
+    @media (min-width: 640px) { .choice-grid.level-grid { grid-template-columns: repeat(3, 1fr); } }
     @media (min-width: 640px) { .choice-grid { grid-template-columns: 1fr 1fr; } }
     .choice { display: flex; flex-direction: column; gap: 4px; text-align: right; border: 1.5px solid rgba(255,255,255,.14); border-radius: 16px; background: rgba(10,14,23,.5); padding: 18px; cursor: pointer; transition: all .2s; }
     .choice:hover { border-color: rgba(201,168,76,.6); }
@@ -947,6 +950,11 @@
             <!-- STEP 2: files + details -->
             <div class="step-panel" data-step="2">
               <h3 class="step-title">ارفع ملفاتك وأضف التفاصيل</h3>
+              <div class="level-box" id="levelBox" style="display:none">
+                <span class="lv-label">مستوى العرض</span>
+                <div class="choice-grid level-grid" id="levelGrid"></div>
+                <span class="err err-block" data-for="level"></span>
+              </div>
               <div class="dropzone" id="dropzone" tabindex="0">
                 <input id="fileInput" type="file" multiple hidden
                   accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.txt,.zip" />
@@ -1383,6 +1391,14 @@
         { id: 'تصميم احترافي', name: 'تصميم احترافي', desc: 'تنسيق وتصميم مميّز', price: 'حسب الطلب' },
         { id: 'تسليم سريع', name: 'تسليم سريع', desc: 'أولوية في التنفيذ', price: 'حسب الطلب' }
       ];
+      // Presentation levels (mirrors the server). "+ نص تقديم" adds 1 OMR.
+      var PPT_LEVELS = [
+        { id: 'simple', name: 'بسيط', desc: 'تصميم نظيف ومرتب', price: 2 },
+        { id: 'medium', name: 'متوسط', desc: 'تصميم منسّق مع أيقونات وصور', price: 3 },
+        { id: 'pro', name: 'احترافي', desc: 'تصميم مميز بلمسات احترافية ورسوم توضيحية', price: 4 }
+      ];
+      var PPT_SCRIPT_EXTRA = { 'عرض PowerPoint': 0, 'عرض PowerPoint + نص تقديم': 1 };
+      function isPptService() { return PPT_SCRIPT_EXTRA.hasOwnProperty(state.service); }
       var ALLOWED_EXT = ['pdf','doc','docx','ppt','pptx','png','jpg','jpeg','webp','txt','zip'];
       var MAX_FILE_BYTES = 80 * 1024 * 1024;
 
@@ -1395,7 +1411,7 @@
       var dots = el('stepper').querySelectorAll('.step-dot');
       var TOTAL_STEPS = panels.length;
 
-      var state = { service: '', addons: {}, files: [], discount: null };
+      var state = { service: '', level: '', addons: {}, files: [], discount: null };
       var step = 1;
 
       function fmtSize(b) { return b < 1024*1024 ? Math.round(b/1024)+' KB' : (b/1024/1024).toFixed(1)+' MB'; }
@@ -1418,9 +1434,33 @@
           serviceGrid.querySelectorAll('.choice').forEach(function (c) { c.classList.remove('selected'); });
           d.classList.add('selected');
           setError('service', '');
+          renderLevels();
         });
         serviceGrid.appendChild(d);
       });
+
+      // ---- presentation level (PowerPoint services only) ----
+      var levelGrid = el('levelGrid');
+      function renderLevels() {
+        var show = isPptService();
+        el('levelBox').style.display = show ? '' : 'none';
+        levelGrid.innerHTML = '';
+        if (!show) { state.level = ''; return; }
+        var extra = PPT_SCRIPT_EXTRA[state.service];
+        PPT_LEVELS.forEach(function (lv) {
+          var d = document.createElement('div');
+          d.className = 'choice' + (state.level === lv.id ? ' selected' : '');
+          d.setAttribute('role', 'button');
+          d.innerHTML = '<span class="c-name">' + lv.name + '</span><span class="c-desc">' + lv.desc + '</span><span class="c-price">' + (lv.price + extra) + ' ر.ع</span>';
+          d.addEventListener('click', function () {
+            state.level = lv.id;
+            levelGrid.querySelectorAll('.choice').forEach(function (c) { c.classList.remove('selected'); });
+            d.classList.add('selected');
+            setError('level', '');
+          });
+          levelGrid.appendChild(d);
+        });
+      }
 
       // ---- render addons ----
       var addonList = el('addonList');
@@ -1528,6 +1568,7 @@
         if (n === 1) {
           if (!state.service) { setError('service', 'الرجاء اختيار الخدمة المطلوبة.'); ok = false; }
         } else if (n === 2) {
+          if (isPptService() && !state.level) { setError('level', 'الرجاء اختيار مستوى العرض.'); ok = false; }
           if (state.files.length === 0) { setError('files', 'الرجاء رفع ملف واحد على الأقل.'); ok = false; }
           if (!form.subject.value.trim()) { setError('subject', 'الرجاء إدخال اسم المادة.'); ok = false; } else setError('subject', '');
         } else if (n === 4) {
@@ -1548,6 +1589,7 @@
         function row(k, v) { return '<div class="summary-row"><span class="s-key">' + k + '</span><span class="s-val">' + v + '</span></div>'; }
         box.innerHTML = '<h4>ملخص الطلب</h4>' +
           row('الخدمة', state.service || '—') +
+          (isPptService() && state.level ? row('مستوى العرض', PPT_LEVELS.filter(function (l) { return l.id === state.level; })[0].name) : '') +
           row('الملفات', state.files.length + ' ملف') +
           row('المادة', form.subject.value.trim() || '—') +
           row('الموعد النهائي', form.deadline.value || 'غير محدد') +
@@ -1589,6 +1631,7 @@
 
         var fd = new FormData();
         fd.append('service', state.service);
+        if (isPptService()) fd.append('level', state.level);
         fd.append('subject', form.subject.value.trim());
         fd.append('deadline', form.deadline.value);
         fd.append('notes', form.notes.value.trim());
@@ -1605,7 +1648,8 @@
             if (res.ok && res.j.ok) {
               var orderNo = '#' + res.j.orderId;
               el('orderNumber').textContent = orderNo;
-              if (res.j.sizeLabel) { el('orderSizeLine').innerHTML = '📦 حجم طلبك: <b>' + res.j.sizeLabel + '</b> · السعر: <b>' + res.j.price + ' ريال عماني</b>'; }
+              if (res.j.levelLabel) { el('orderSizeLine').innerHTML = '🎨 مستوى العرض: <b>' + res.j.levelLabel + '</b> · السعر: <b>' + res.j.price + ' ريال عماني</b>'; }
+              else if (res.j.sizeLabel) { el('orderSizeLine').innerHTML = '📦 حجم طلبك: <b>' + res.j.sizeLabel + '</b> · السعر: <b>' + res.j.price + ' ريال عماني</b>'; }
               // Pre-filled WhatsApp confirmation containing the order number.
               var waMsg = 'مرحباً إتقان 👋\nأرغب بتأكيد طلبي:\nرقم الطلب: ' + orderNo +
                 '\nالخدمة: ' + state.service +
@@ -1631,7 +1675,8 @@
 
       el('resetForm').addEventListener('click', function () {
         form.reset();
-        state = { service: '', addons: {}, files: [], discount: null };
+        state = { service: '', level: '', addons: {}, files: [], discount: null };
+        renderLevels();
         setDiscountMsg('');
         serviceGrid.querySelectorAll('.choice').forEach(function (c) { c.classList.remove('selected'); });
         addonList.querySelectorAll('.addon').forEach(function (a) { a.classList.remove('selected'); });

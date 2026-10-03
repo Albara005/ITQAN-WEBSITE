@@ -152,7 +152,7 @@ function customerEmailHtml(order, opts) {
       <p style="font-size:15px;line-height:1.9;margin:0 0 16px;">${opts.intro}</p>
       ${opts.statusHtml || ''}
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
-        ${row('رقم الطلب', '#' + order.id)}${row('الخدمة', order.service)}${row('المادة', order.subject || '—')}${row('الموعد', order.deadline || 'غير محدد')}${row('الإضافات', addons)}${order.sizeTier ? row('حجم الطلب', SIZE_LABELS[order.sizeTier] + ' — ' + order.price + ' ر.ع') : ''}${order.discount ? row('كود الخصم', order.discount.code + ' (' + order.discount.percent + '%)') : ''}
+        ${row('رقم الطلب', '#' + order.id)}${row('الخدمة', order.service)}${row('المادة', order.subject || '—')}${row('الموعد', order.deadline || 'غير محدد')}${row('الإضافات', addons)}${order.sizeTier ? row('حجم الطلب', SIZE_LABELS[order.sizeTier] + ' — ' + order.price + ' ر.ع') : ''}${order.pptLevel && PPT_LEVELS[order.pptLevel] ? row('مستوى العرض', PPT_LEVELS[order.pptLevel].label + ' — ' + order.price + ' ر.ع') : ''}${order.discount ? row('كود الخصم', order.discount.code + ' (' + order.discount.percent + '%)') : ''}
       </table>
       <div style="text-align:center;padding:24px 0 8px;">
         <a href="${trackUrl}" style="display:inline-block;background:linear-gradient(135deg,#e8cd82,#a9802e);color:#1a1206;text-decoration:none;padding:13px 34px;border-radius:10px;font-weight:800;font-size:15px;">تتبّع حالة طلبك</a>
@@ -213,10 +213,10 @@ function notifyNewOrder(order) {
   const addons = (order.addons && order.addons.join('، ')) || 'لا يوجد';
   const deadline = order.deadline || 'غير محدد';
   const discountText = order.discount ? `${order.discount.code} (${order.discount.percent}%)` : 'لا يوجد';
-  const sizeText = order.sizeTier ? `${SIZE_LABELS[order.sizeTier]} — ${order.price} ر.ع (${order.sizePages} صفحة تقريبًا)` : 'غير محدد';
+  const sizeText = order.sizeTier ? `${SIZE_LABELS[order.sizeTier]} — ${order.price} ر.ع (${order.sizePages} صفحة تقريبًا)` : (typeof order.price === 'number' ? `${order.price} ر.ع (قبل الإضافات)` : 'غير محدد');
   const lines = [
     `طلب جديد ${num}`,
-    `الخدمة: ${order.service}`,
+    `الخدمة: ${order.service}${order.pptLevel && PPT_LEVELS[order.pptLevel] ? ' — مستوى ' + PPT_LEVELS[order.pptLevel].label : ''}`,
     `الاسم: ${order.customer.name}`,
     `واتساب: ${order.customer.whatsapp}`,
     `البريد: ${order.customer.email}`,
@@ -224,7 +224,7 @@ function notifyNewOrder(order) {
     `الموعد: ${deadline}`,
     `الإضافات: ${addons}`,
     `كود الخصم: ${discountText}`,
-    `حجم الطلب: ${sizeText}`,
+    `${order.sizeTier ? 'حجم الطلب' : 'السعر'}: ${sizeText}`,
     `الملفات: ${order.files.length}`,
   ];
   console.log('\n📩 ' + lines.join('\n   '));
@@ -235,7 +235,7 @@ function notifyNewOrder(order) {
   const html = `<div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;max-width:560px;margin:0 auto;border:1px solid #e7eaee;border-radius:14px;overflow:hidden;">
     <div style="background:#0c1a2b;color:#e8cd82;padding:18px 22px;font-size:18px;font-weight:700;">إتقان — طلب جديد ${num}</div>
     <table style="width:100%;border-collapse:collapse;font-size:14px;background:#fff;">
-      ${row('الخدمة', order.service)}${row('المادة', order.subject)}${row('الاسم', order.customer.name)}${row('واتساب', order.customer.whatsapp)}${row('البريد', order.customer.email)}${row('الموعد', deadline)}${row('الإضافات', addons)}${order.discount ? `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">كود الخصم</td><td style="padding:9px 14px;color:#a9802e;font-weight:800;border-bottom:1px solid #eef1f4;">${esc(order.discount.code)} (${order.discount.percent}%)</td></tr>` : ''}${order.sizeTier ? `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">حجم الطلب</td><td style="padding:9px 14px;color:#0f766e;font-weight:800;border-bottom:1px solid #eef1f4;">${SIZE_LABELS[order.sizeTier]} — ${order.price} ر.ع</td></tr>` : ''}${row('عدد الملفات', order.files.length)}
+      ${row('الخدمة', order.service + (order.pptLevel && PPT_LEVELS[order.pptLevel] ? ' — مستوى ' + PPT_LEVELS[order.pptLevel].label : ''))}${row('المادة', order.subject)}${row('الاسم', order.customer.name)}${row('واتساب', order.customer.whatsapp)}${row('البريد', order.customer.email)}${row('الموعد', deadline)}${row('الإضافات', addons)}${order.discount ? `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">كود الخصم</td><td style="padding:9px 14px;color:#a9802e;font-weight:800;border-bottom:1px solid #eef1f4;">${esc(order.discount.code)} (${order.discount.percent}%)</td></tr>` : ''}${order.sizeTier ? `<tr><td style="padding:9px 14px;color:#7a8aa0;border-bottom:1px solid #eef1f4;">حجم الطلب</td><td style="padding:9px 14px;color:#0f766e;font-weight:800;border-bottom:1px solid #eef1f4;">${SIZE_LABELS[order.sizeTier]} — ${order.price} ر.ع</td></tr>` : ''}${row('عدد الملفات', order.files.length)}
     </table>${btn}
   </div>`;
   const mailOpts = {
@@ -275,6 +275,17 @@ function writeOrders(list) { fs.writeFileSync(ORDERS_DB, JSON.stringify(list, nu
 const SUMMARY_SERVICES = new Set(['ملخص دراسي', 'ملخص + أسئلة مراجعة']);
 const SIZE_PRICES = { small: 1, medium: 2, large: 3 };       // OMR
 const SIZE_LABELS = { small: 'صغير', medium: 'متوسط', large: 'كبير' };
+// Starting price for services that aren't priced by size (matches the prices on the site).
+const BASE_PRICES = { 'عرض PowerPoint': 2, 'عرض PowerPoint + نص تقديم': 3 };
+// PowerPoint presentation levels picked by the customer; "+ نص تقديم" adds 1 OMR.
+const PPT_LEVELS = { simple: { label: 'بسيط', price: 2 }, medium: { label: 'متوسط', price: 3 }, pro: { label: 'احترافي', price: 4 } };
+const PPT_SCRIPT_EXTRA = { 'عرض PowerPoint': 0, 'عرض PowerPoint + نص تقديم': 1 };
+function pptPrice(service, level) {
+  if (!(service in PPT_SCRIPT_EXTRA) || !PPT_LEVELS[level]) return null;
+  return PPT_LEVELS[level].price + PPT_SCRIPT_EXTRA[service];
+}
+// Default add-on prices pre-filled in the dashboard (others are priced per order).
+const ADDON_PRICES = { 'أسئلة مراجعة': 0.5 };
 const SIZE_SMALL_MAX = 15;   // pages
 const SIZE_MEDIUM_MAX = 40;  // pages
 function tierFromPages(p) { return p <= SIZE_SMALL_MAX ? 'small' : p <= SIZE_MEDIUM_MAX ? 'medium' : 'large'; }
@@ -501,12 +512,15 @@ function handleOrder(req, res) {
 
     const disc = findValidDiscount(fields.discountCode);
     const sz = SUMMARY_SERVICES.has(fields.service) ? estimateOrderSize(orderDir, files) : null;
+    const level = (fields.service in PPT_SCRIPT_EXTRA) && PPT_LEVELS[fields.level] ? fields.level : null;
     const order = {
       id: orderId, createdAt: new Date().toISOString(), status: 'new',
       service: fields.service || '', subject: fields.subject || '',
       deadline: fields.deadline || '', notes: fields.notes || '', addons,
       discount: disc ? { code: disc.code, percent: disc.percent } : null,
-      sizeTier: sz ? sz.tier : null, sizePages: sz ? sz.pages : null, price: sz ? sz.price : null,
+      sizeTier: sz ? sz.tier : null, sizePages: sz ? sz.pages : null,
+      pptLevel: level,
+      price: sz ? sz.price : (pptPrice(fields.service, level) ?? BASE_PRICES[fields.service] ?? null),
       customer: { name: fields.name || '', email: fields.email || '', whatsapp: fields.whatsapp || '' },
       files,
     };
@@ -514,7 +528,7 @@ function handleOrder(req, res) {
     if (disc) incrementDiscountUsage(disc.code);
     notifyNewOrder(order);
     notifyCustomerOrder(order);
-    sendJson(res, 200, { ok: true, orderId, fileCount: files.length, sizeTier: sz ? sz.tier : null, sizeLabel: sz ? sz.label : null, price: sz ? sz.price : null, pages: sz ? sz.pages : null });
+    sendJson(res, 200, { ok: true, orderId, fileCount: files.length, sizeTier: sz ? sz.tier : null, sizeLabel: sz ? sz.label : null, levelLabel: level ? PPT_LEVELS[level].label : null, price: order.price, pages: sz ? sz.pages : null });
   });
   req.pipe(bb);
 }
@@ -891,9 +905,14 @@ function handleDiscountCheck(res, query) {
 // one, otherwise the automatic size price minus the discount. null = not priced yet.
 function orderPaidAmount(o) {
   if (typeof o.finalPrice === 'number') return o.finalPrice;
-  if (typeof o.price !== 'number') return null;
+  const base = typeof o.price === 'number' ? o.price : BASE_PRICES[o.service];
+  if (typeof base !== 'number') return null;
   const pct = o.discount ? Number(o.discount.percent) || 0 : 0;
-  return Math.round(o.price * (100 - pct)) / 100;
+  return Math.round((base + orderAddonsTotal(o)) * (100 - pct) * 10) / 1000;
+}
+function orderAddonsTotal(o) {
+  if (!o.addonPrices) return (o.addons || []).reduce((a, n) => a + (ADDON_PRICES[n] || 0), 0);
+  return Object.values(o.addonPrices).reduce((a, v) => a + (Number(v) || 0), 0);
 }
 // Referral stats for one code: orders that used it, their total, and the owner's commission.
 function referralStats(d, orders) {
@@ -945,11 +964,24 @@ async function handleOrderPrice(req, res) {
   const list = readOrders();
   const o = list.find((x) => x.id === id);
   if (!o) return sendJson(res, 404, { ok: false, error: 'الطلب غير موجود.' });
-  const v = Number(body.amount);
-  if (body.amount === '' || body.amount == null || !(v >= 0)) delete o.finalPrice;
-  else o.finalPrice = Math.round(v * 1000) / 1000;
+  const num = (x) => { const v = Number(x); return x === '' || x == null || !(v >= 0) ? null : Math.round(v * 1000) / 1000; };
+  // Price breakdown: base price + a price per add-on the customer picked. The total
+  // (after the discount) becomes the order's final amount.
+  if (body.base !== undefined) {
+    const b = num(body.base);
+    if (b === null) delete o.price; else o.price = b;
+    const ap = {};
+    (o.addons || []).forEach((a) => { const v = num(body.addonPrices && body.addonPrices[a]); if (v !== null) ap[a] = v; });
+    o.addonPrices = ap;
+    delete o.finalPrice;
+    const total = orderPaidAmount(o);
+    if (total !== null) o.finalPrice = total;
+  } else {
+    const v = num(body.amount);
+    if (v === null) delete o.finalPrice; else o.finalPrice = v;
+  }
   writeOrders(list);
-  sendJson(res, 200, { ok: true, finalPrice: o.finalPrice ?? null });
+  sendJson(res, 200, { ok: true, finalPrice: o.finalPrice ?? null, price: o.price ?? null, addonPrices: o.addonPrices || {} });
 }
 // Admin: add or update a code. `days` > 0 sets an expiry; 0/empty means no expiry.
 async function handleDiscountSave(req, res) {
