@@ -8,6 +8,20 @@
 
   <link rel="icon" type="image/png" href="logo.png" />
 
+  <!-- Meta Pixel (skipped on localhost so local testing never reaches the ads dataset) -->
+  <script>
+    if (!/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+      !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+      n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+      t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+      document,'script','https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '1666398194935217');
+      fbq('track', 'PageView');
+    }
+  </script>
+  <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1666398194935217&ev=PageView&noscript=1" alt="" /></noscript>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@400;500;600;700&family=Tajawal:wght@300;400;500;700;800&family=Reem+Kufi:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -1422,6 +1436,12 @@
         if (input) input.classList.toggle('invalid', !!msg);
       }
 
+      // ---- Meta Pixel events (no-op when the pixel isn't loaded, e.g. on localhost) ----
+      // Meta doesn't accept OMR, so values are sent in USD at the fixed peg (1 OMR = 2.6008 USD).
+      var OMR_TO_USD = 2.6008;
+      var checkoutTracked = false;
+      function trackPixel(ev, data, opts) { try { if (window.fbq) window.fbq('track', ev, data || {}, opts || {}); } catch (e) {} }
+
       // ---- render service cards ----
       var serviceGrid = el('serviceGrid');
       SERVICES.forEach(function (s) {
@@ -1430,6 +1450,7 @@
         d.setAttribute('role', 'button');
         d.innerHTML = '<span class="c-name">' + s.name + '</span><span class="c-desc">' + s.desc + '</span><span class="c-price">' + s.price + '</span>';
         d.addEventListener('click', function () {
+          if (!checkoutTracked) { checkoutTracked = true; trackPixel('InitiateCheckout', { content_name: s.id }); }
           state.service = s.id;
           serviceGrid.querySelectorAll('.choice').forEach(function (c) { c.classList.remove('selected'); });
           d.classList.add('selected');
@@ -1648,6 +1669,8 @@
             if (res.ok && res.j.ok) {
               var orderNo = '#' + res.j.orderId;
               el('orderNumber').textContent = orderNo;
+              var priceOmr = Number(res.j.price) || 0;
+              trackPixel('Purchase', { value: Math.round(priceOmr * OMR_TO_USD * 100) / 100, currency: 'USD', value_omr: priceOmr, content_name: state.service, content_type: 'product' }, { eventID: 'order-' + res.j.orderId });
               if (res.j.levelLabel) { el('orderSizeLine').innerHTML = '🎨 مستوى العرض: <b>' + res.j.levelLabel + '</b> · السعر: <b>' + res.j.price + ' ريال عماني</b>'; }
               else if (res.j.sizeLabel) { el('orderSizeLine').innerHTML = '📦 حجم طلبك: <b>' + res.j.sizeLabel + '</b> · السعر: <b>' + res.j.price + ' ريال عماني</b>'; }
               // Pre-filled WhatsApp confirmation containing the order number.
